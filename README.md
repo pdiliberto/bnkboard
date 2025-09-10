@@ -35,9 +35,11 @@ bnkdash frontend listens on port 8080
 
 http://<IP ADDR>:8080 for a list of all FW policies installed
 
-
+![All Policies and Rules Screenshot](frontend/policy-rules.jpg)
 
 http://<IP ADDR>:8080/namespace to select a specific namespace (only namespaces with a gateway will be listed) and show the associated policy
+
+![Namespaces (apps) Policies](frontend/namespaces.jpg)
 
 
 
