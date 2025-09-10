@@ -31,7 +31,7 @@ docker compose up --build -d
 
 ---
 
-bnkdash frontend listens on port 8080
+BNKboard frontend listens on port 8080
 
 http://<IP ADDR>:8080 for a list of all FW policies installed
 
