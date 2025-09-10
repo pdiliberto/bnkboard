@@ -1,8 +1,10 @@
 # BNKboard
 
 **Bnkboard** is a web application with a **frontend + FastAPI backend + Nginx** architecture, ready to run using **Docker Compose**. 
+
 It uses k8s API to visualize the F5 BNK Firewall policies applied to the Gateway CRD.
-It's made just for demonstration purposes.
+
+It's made just for demonstration purposes, not for production.
 
 ---
 
