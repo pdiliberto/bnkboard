@@ -43,7 +43,11 @@ http://<IP ADDR>:8080/namespace to select a specific namespace (only namespaces 
 
 ![Namespaces (apps) Policies](frontend/namespaces.jpg)
 
+---
 
+## Disclaimer
+
+This is not officially supported by F5.
 
 
 
