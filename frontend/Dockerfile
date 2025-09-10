@@ -5,7 +5,6 @@ WORKDIR /usr/share/nginx/html
 COPY index.html .
 COPY namespace.html .
 COPY style.css .
-#COPY export.js .
 
 # Config nginx per proxy verso backend
 COPY nginx.conf /etc/nginx/conf.d/default.conf
