@@ -1,0 +1,79 @@
+/* Font e layout generale */
+body { font-family: Arial, sans-serif; margin: 20px; }
+
+/* Tabelle */
+table { border-collapse: collapse; width: 100%; margin-top: 10px; }
+th, td { border: 1px solid #ccc; padding: 5px; text-align: left; vertical-align: top; white-space: pre-line; }
+th { background: #f0f0f0; }
+
+/* Righe alternate */
+tbody tr:nth-child(even) { background-color: #f9f9f9; }
+
+/* Colore testo Action */
+.drop { color: red; font-weight: bold; }
+.accept { color: green; font-weight: bold; }
+
+/* Controlli */
+.controls { margin-bottom: 10px; }
+.controls label { margin-right: 5px; }
+
+/* Tooltip discreto a cerchio */
+.tooltip {
+  position: relative;
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 50%;
+  background-color: #ccc;
+  color: #000;
+  font-weight: bold;
+  font-size: 12px;
+  cursor: help;
+  margin-left: 5px;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 220px;
+  background-color: #333;
+  color: #fff;
+  text-align: center;
+  border-radius: 4px;
+  padding: 5px;
+  position: absolute;
+  z-index: 1;
+  bottom: 125%;
+  left: 50%;
+  margin-left: -110px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+  opacity: 1;
+}
+.policy-status {
+  font-weight: normal;
+  font-size: 0.9em;
+  margin-top: 2px;
+}
+
+.policy-ok {
+  color: green;
+}
+
+.policy-error {
+  color: red;
+}
+.policy-value-ok {
+  color: green;
+  font-weight: bold;
+}
+
+.policy-value-error {
+  color: red;
+  font-weight: bold;
+}

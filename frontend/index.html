@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>BNK Rules Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h2>BNK Rules Dashboard</h2>
+
+  <div class="controls">
+    <label for="targetFilter">target filter:</label>
+    <select id="targetFilter">
+      <option value="">All</option>
+    </select>
+
+    <label for="refreshInterval">refresh interval:</label>
+    <select id="refreshInterval">
+      <option value="5000">5 seconds</option>
+      <option value="20000">20 seconds</option>
+      <option value="60000">1 minute</option>
+      <option value="manual">Manual</option>
+    </select>
+
+    <button id="manualRefresh">Refresh</button>
+    <button onclick="exportTablesToExcel()">Export XLS</button>
+  </div>
+
+  <table id="rules-table">
+    <thead>
+      <tr>
+	<th>Policy</th>
+        <th>Target</th>
+        <th>Rule Name</th>
+        <th>Protocol</th>
+        <th>Source</th>
+        <th>Destination</th>
+        <th>Destination Ports</th>
+        <th>Action</th>
+        <th>Logging</th>
+        <th>Description</th>
+        <th>Creation Timestamp</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script> 
+    console.log("Script caricato");
+    document.addEventListener("DOMContentLoaded", () => {
+      console.log("DOM pronto");
+      fetchRules();
+      setupAutoRefresh();
+    });
+
+    let allRules = [];
+    let refreshTimer = null;
+
+    async function fetchRules() {
+      try {
+        console.log("Fetching rules...");
+        const res = await fetch('/api/firewall-rules');
+        console.log("Response status:", res.status);
+        allRules = await res.json();
+        console.log("Data received:", allRules);
+        populateFilter();
+        renderTable();
+      } catch (err) {
+        console.error("Errore nel fetch:", err);
+      }
+    }
+
+    function populateFilter() {
+      const select = document.getElementById("targetFilter");
+      const currentSelection = select.value;
+
+      const targets = new Set();
+      allRules.forEach(r => {
+        r.target.split("\n").forEach(t => targets.add(t));
+      });
+
+      select.innerHTML = '<option value="">All</option>';
+      Array.from(targets).sort().forEach(t => {
+        const option = document.createElement('option');
+        option.value = t;
+        option.textContent = t;
+        select.appendChild(option);
+      });
+
+      if (currentSelection && Array.from(select.options).some(o => o.value === currentSelection)) {
+        select.value = currentSelection;
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.querySelector('#rules-table tbody');
+      tbody.innerHTML = '';
+
+      const selectedTarget = document.getElementById("targetFilter").value;
+
+      allRules.forEach(rule => {
+        if (selectedTarget && !rule.target.includes(selectedTarget)) return;
+
+        const tr = document.createElement('tr');
+
+        Object.entries(rule).forEach(([key, val]) => {
+          const td = document.createElement('td');
+
+          if (key === "source" || key === "destination") {
+            td.textContent = (val || '').split(',').map(v => v.trim().replace('/32','')).join("\n");
+          } else if (key === "ports") {
+            td.textContent = (val || '').split(',').join("\n");
+          } else {
+            td.textContent = val ?? '';
+          }
+
+          if (key === "action") {
+            const action = (val || "").toLowerCase();
+            if (action === "drop") td.classList.add("drop");
+            else if (action === "accept") td.classList.add("accept");
+          }
+
+          tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    function setupAutoRefresh() {
+      const intervalSelect = document.getElementById("refreshInterval");
+      if (refreshTimer) clearInterval(refreshTimer);
+
+      const value = intervalSelect.value;
+      if (value !== "manual") {
+        refreshTimer = setInterval(fetchRules, parseInt(value));
+      }
+    }
+
+    document.getElementById("targetFilter").addEventListener("change", renderTable);
+    document.getElementById("refreshInterval").addEventListener("change", setupAutoRefresh);
+    document.getElementById("manualRefresh").addEventListener("click", fetchRules);
+
+    // --- EXPORT XLS ---
+    function exportTablesToExcel(filename = "rules_export.xls") {
+      const tables = document.querySelectorAll("table");
+      if (tables.length === 0) {
+        alert("No tables to export!");
+        return;
+      }
+
+      let html = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" 
+              xmlns:x="urn:schemas-microsoft-com:office:excel" 
+              xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <!--[if gte mso 9]>
+          <xml>
+            <x:ExcelWorkbook>
+              <x:ExcelWorksheets>
+      `;
+
+      tables.forEach((table, idx) => {
+        html += `
+          <x:ExcelWorksheet>
+            <x:Name>Table${idx + 1}</x:Name>
+            <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+          </x:ExcelWorksheet>
+        `;
+      });
+
+      html += `
+              </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+          </xml>
+          <![endif]-->
+        </head><body>
+      `;
+
+      tables.forEach((table, idx) => {
+        html += `<h3>Table ${idx + 1}</h3>` + table.outerHTML + "<br/>";
+      });
+
+      html += `</body></html>`;
+
+      const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  </script>
+</body>
+</html>
+

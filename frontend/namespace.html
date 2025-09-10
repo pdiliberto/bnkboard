@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>BNK Namespace Policies</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h2>BNK Namespace Policies</h2>
+
+  <div class="controls">
+    <label for="nsSelect">Select Namespace
+      <span class="tooltip">?
+        <span class="tooltiptext">only namespaces with at least a Gateway will be listed.</span>
+      </span>:
+    </label>
+    <select id="nsSelect"></select>
+
+    <label for="refreshInterval">refresh interval:</label>
+    <select id="refreshInterval">
+      <option value="5000">5 seconds</option>
+      <option value="20000">20 seconds</option>
+      <option value="60000">1 minute</option>
+      <option value="manual">Manual</option>
+    </select>
+
+    <button id="manualRefresh">Refresh</button>
+    <button onclick="exportTablesToExcel()">Export XLS</button>
+  </div>
+
+  <div id="policies-container"></div>
+
+  <script>
+    let refreshTimer = null;
+
+    async function loadNamespaces() {
+      try {
+        const res = await fetch('/api/namespaces');
+        const data = await res.json();
+        const select = document.getElementById("nsSelect");
+        select.innerHTML = '';
+        data.namespaces.forEach(ns => {
+          const opt = document.createElement("option");
+          opt.value = ns;
+          opt.textContent = ns;
+          select.appendChild(opt);
+        });
+        if (data.namespaces.length > 0) {
+          loadPolicies(select.value || data.namespaces[0]);
+        }
+      } catch (err) {
+        console.error("Error loading namespaces:", err);
+      }
+    }
+
+    async function loadPolicies(ns) {
+      try {
+        const res = await fetch(`/api/policies/${ns}`);
+        const data = await res.json();
+        renderTable(data.policies);
+      } catch (err) {
+        console.error("Error loading policies:", err);
+      }
+    }
+
+    function renderTable(policies) {
+      const container = document.getElementById('policies-container');
+      container.innerHTML = '';
+
+      policies.forEach(pol => {
+        // ===== Tabella Gateway =====
+        if (pol.gateway) {
+          const gwTable = document.createElement('table');
+          gwTable.style.marginBottom = '10px';
+          const thead = document.createElement('thead');
+          const headerRow = document.createElement('tr');
+          ['Gateway Name','IP Address','Port','Protocol','Kind'].forEach(text => {
+            const th = document.createElement('th');
+            th.textContent = text;
+            headerRow.appendChild(th);
+          });
+          thead.appendChild(headerRow);
+          gwTable.appendChild(thead);
+
+          const tbody = document.createElement('tbody');
+          const tr = document.createElement('tr');
+          [pol.gateway.name, pol.gateway.ip, pol.gateway.port, pol.gateway.protocol, pol.gateway.kind].forEach(val => {
+            const td = document.createElement('td');
+            td.textContent = val ?? '';
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+          gwTable.appendChild(tbody);
+
+          container.appendChild(gwTable);
+        }
+
+        // ===== Tabella Policy =====
+        const table = document.createElement('table');
+
+        // Caption con nome policy + reason + message
+        const caption = document.createElement('caption');
+        caption.style.fontWeight = 'bold';
+        caption.style.marginBottom = '5px';
+        caption.style.textAlign = 'left';
+        caption.style.backgroundColor = '#e0e0e0';
+        caption.style.padding = '5px 10px';
+        caption.style.borderBottom = '1px solid #ccc';
+
+        let message = "";
+        let reason = "";
+        if (pol.status && Array.isArray(pol.status.conditions) && pol.status.conditions.length > 1) {
+          const cond = pol.status.conditions[1];
+          message = cond.message || "";
+          reason = cond.reason || "";
+        }
+        const valueClass = reason === "Programmed" ? "policy-value-ok" : "policy-value-error";
+
+        caption.innerHTML = `
+          <div>Policy: ${pol.metadata.name}</div>
+          <div class="policy-status">
+            <b>Reason:</b> <span class="${valueClass}">${reason}</span>
+            &nbsp;&nbsp; 
+            <b>Message:</b> <span class="${valueClass}">${message}</span>
+          </div>
+        `;
+        table.appendChild(caption);
+	// Intestazione con colonna numerica
+const thead = document.createElement('thead');
+const headerRow = document.createElement('tr');
+['#','Rule Name','Protocol','Source','Destination','Destination Ports','Action','Logging','Description','Creation Timestamp']
+  .forEach(text => {
+    const th = document.createElement('th');
+    th.textContent = text;
+    headerRow.appendChild(th);
+  });
+thead.appendChild(headerRow);
+table.appendChild(thead);
+
+// Corpo con numerazione progressiva
+const tbody = document.createElement('tbody');
+(pol.spec.rule || []).forEach((rule, index) => {
+  const tr = document.createElement('tr');
+
+  // Cella con il numero progressivo
+  const numTd = document.createElement('td');
+  numTd.textContent = index + 1;
+  tr.appendChild(numTd);
+
+  const cells = {
+    ruleName: rule.name,
+    protocol: rule.ipProtocol,
+    source: (rule.source?.addresses || []).map(a => a.replace('/32','')).join("\n"),
+    destination: (rule.destination?.addresses || []).map(a => a.replace('/32','')).join("\n"),
+    ports: (rule.destination?.ports || []).join("\n"),
+    action: rule.action,
+    logging: rule.logging,
+    description: rule.description || "",
+    timestamp: pol.metadata.creationTimestamp
+  };
+
+  Object.entries(cells).forEach(([key, val]) => {
+    const td = document.createElement('td');
+    if (key === "action") {
+      const action = (val || "").toLowerCase();
+      td.textContent = val;
+      if (action === "drop") td.classList.add("drop");
+      else if (action === "accept") td.classList.add("accept");
+    } else {
+      td.textContent = val || '';
+    }
+    tr.appendChild(td);
+  });
+  tbody.appendChild(tr);
+});
+table.appendChild(tbody);
+
+        container.appendChild(table);
+      });
+    }
+
+    function setupAutoRefresh() {
+      const intervalSelect = document.getElementById("refreshInterval");
+      if (refreshTimer) clearInterval(refreshTimer);
+
+      const value = intervalSelect.value;
+      if (value !== "manual") {
+        refreshTimer = setInterval(() => {
+          const ns = document.getElementById("nsSelect").value;
+          loadPolicies(ns);
+        }, parseInt(value));
+      }
+    }
+
+    document.getElementById("nsSelect").addEventListener("change", (e) => {
+      loadPolicies(e.target.value);
+    });
+
+    document.getElementById("refreshInterval").addEventListener("change", setupAutoRefresh);
+    document.getElementById("manualRefresh").addEventListener("click", () => {
+      const ns = document.getElementById("nsSelect").value;
+      loadPolicies(ns);
+    });
+
+    // --- EXPORT XLS ---
+    function exportTablesToExcel(filename = "policies_export.xls") {
+      const tables = document.querySelectorAll("table");
+      if (tables.length === 0) {
+        alert("No tables to export!");
+        return;
+      }
+
+      let html = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" 
+              xmlns:x="urn:schemas-microsoft-com:office:excel" 
+              xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <!--[if gte mso 9]>
+          <xml>
+            <x:ExcelWorkbook>
+              <x:ExcelWorksheets>
+      `;
+
+      tables.forEach((table, idx) => {
+        html += `
+          <x:ExcelWorksheet>
+            <x:Name>Table${idx + 1}</x:Name>
+            <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+          </x:ExcelWorksheet>
+        `;
+      });
+
+      html += `
+              </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+          </xml>
+          <![endif]-->
+        </head><body>
+      `;
+
+      tables.forEach((table, idx) => {
+        html += `<h3>Table ${idx + 1}</h3>` + table.outerHTML + "<br/>";
+      });
+
+      html += `</body></html>`;
+
+      const blob = new Blob([html], { type: "application/vnd.ms-excel" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    loadNamespaces();
+    setupAutoRefresh();
+  </script>
+</body>
+</html>
+
