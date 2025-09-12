@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>BNK Gateways</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    td pre {
+      margin: 0;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h2>BNK Gateways</h2>
+
+  <div class="controls">
+    <label for="nsFilter">Namespace filter:</label>
+    <select id="nsFilter">
+      <option value="">All</option>
+    </select>
+
+    <label for="refreshInterval">Refresh interval:</label>
+    <select id="refreshInterval">
+      <option value="5000">5 seconds</option>
+      <option value="20000">20 seconds</option>
+      <option value="60000">1 minute</option>
+      <option value="manual">Manual</option>
+    </select>
+
+    <button id="manualRefresh">Refresh</button>
+  </div>
+
+  <table id="gateways-table">
+    <thead>
+      <tr>
+        <th>Gateway Name</th>
+        <th>Namespace</th>
+        <th>Listener Name</th>
+        <th>IP</th>
+        <th>Port</th>
+        <th>Protocol</th>
+        <th>Kind</th>
+        <th>Route Type</th>
+        <th>Route Name</th>
+        <th>Backends / Matches</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let refreshTimer = null;
+    let allGateways = [];
+
+    async function loadGateways() {
+      try {
+        const res = await fetch('/api/gateways');
+        const data = await res.json();
+        allGateways = data.gateways || [];
+        populateNamespaceFilter();
+        renderTable();
+      } catch (err) {
+        console.error("Error loading gateways:", err);
+      }
+    }
+
+    function populateNamespaceFilter() {
+      const select = document.getElementById("nsFilter");
+      const currentSelection = select.value;
+
+      const namespaces = new Set(allGateways.map(gw => gw.namespace));
+      select.innerHTML = '<option value="">All</option>';
+      Array.from(namespaces).sort().forEach(ns => {
+        const option = document.createElement('option');
+        option.value = ns;
+        option.textContent = ns;
+        select.appendChild(option);
+      });
+
+      if (currentSelection && Array.from(select.options).some(o => o.value === currentSelection)) {
+        select.value = currentSelection;
+      }
+    }
+
+    function renderTable() {
+      const tbody = document.querySelector('#gateways-table tbody');
+      tbody.innerHTML = '';
+
+      const selectedNS = document.getElementById("nsFilter").value;
+
+      allGateways.forEach(gw => {
+        if (selectedNS && gw.namespace !== selectedNS) return;
+
+        // Se non ci sono routes, mostra comunque la riga del listener
+        if (!gw.routes || gw.routes.length === 0) {
+          const tr = document.createElement('tr');
+          ['gatewayName','namespace','listenerName','ip','port','protocol','kind'].forEach(key => {
+            const td = document.createElement('td');
+            td.textContent = gw[key] || '';
+            tr.appendChild(td);
+          });
+          tr.appendChild(document.createElement('td')); // route type
+          tr.appendChild(document.createElement('td')); // route name
+          tr.appendChild(document.createElement('td')); // backends/matches
+          tbody.appendChild(tr);
+        } else {
+          // per ogni route, crea una riga
+          gw.routes.forEach(route => {
+            // Se HTTPRoute con più match, crea una riga per ogni match
+            if (route.type === "HTTPRoute" && route.match) {
+              const matchHeaders = (route.match.headers || []).map(h => `${h.name}: ${h.value}`).join("\n");
+              const matchPath = route.match.path ? `${route.match.path.type}: ${route.match.path.value}` : "";
+              const matchInfo = [matchHeaders, matchPath].filter(Boolean).join("\n");
+
+              const tr = document.createElement('tr');
+              ['gatewayName','namespace','listenerName','ip','port','protocol','kind'].forEach(key => {
+                const td = document.createElement('td');
+                td.textContent = gw[key] || '';
+                tr.appendChild(td);
+              });
+
+              const tdType = document.createElement('td');
+              tdType.textContent = route.type;
+              tr.appendChild(tdType);
+
+              const tdName = document.createElement('td');
+              tdName.textContent = route.name;
+              tr.appendChild(tdName);
+
+              const tdBackend = document.createElement('td');
+              tdBackend.innerHTML = `<pre>${route.backends.join("\n")}\n${matchInfo}</pre>`;
+              tr.appendChild(tdBackend);
+
+              tbody.appendChild(tr);
+            } else {
+              // L4Route o HTTPRoute senza match
+              const tr = document.createElement('tr');
+              ['gatewayName','namespace','listenerName','ip','port','protocol','kind'].forEach(key => {
+                const td = document.createElement('td');
+                td.textContent = gw[key] || '';
+                tr.appendChild(td);
+              });
+
+              const tdType = document.createElement('td');
+              tdType.textContent = route.type;
+              tr.appendChild(tdType);
+
+              const tdName = document.createElement('td');
+              tdName.textContent = route.name;
+              tr.appendChild(tdName);
+
+              const tdBackend = document.createElement('td');
+              tdBackend.innerHTML = `<pre>${route.backends.join("\n")}</pre>`;
+              tr.appendChild(tdBackend);
+
+              tbody.appendChild(tr);
+            }
+          });
+        }
+      });
+    }
+
+    function setupAutoRefresh() {
+      const intervalSelect = document.getElementById("refreshInterval");
+      if (refreshTimer) clearInterval(refreshTimer);
+
+      const value = intervalSelect.value;
+      if (value !== "manual") {
+        refreshTimer = setInterval(loadGateways, parseInt(value));
+      }
+    }
+
+    // eventi
+    document.getElementById("nsFilter").addEventListener("change", renderTable);
+    document.getElementById("refreshInterval").addEventListener("change", setupAutoRefresh);
+    document.getElementById("manualRefresh").addEventListener("click", loadGateways);
+
+    // carica dati al load
+    loadGateways();
+    setupAutoRefresh();
+  </script>
+</body>
+</html>
+
