@@ -122,70 +122,123 @@ def get_policies_by_namespace(namespace: str):
 @app.get("/api/gateways")
 def list_gateways():
     try:
-        # recupera namespaces
-        ns_data = run_kubectl(["kubectl", "get", "ns", "-o", "json"])
-        if not ns_data:
-            return {"gateways": []}
+        ns_output = subprocess.check_output(
+            ["kubectl", "get", "ns", "-o", "json"], text=True
+        )
+        ns_data = yaml.safe_load(ns_output)
 
-        # recupera tutte le L4Route e HTTPRoute globali
-        l4_data = run_kubectl(["kubectl", "get", "l4route.gateway.k8s.f5net.com", "-A", "-o", "json"]) or {}
-        http_data = run_kubectl(["kubectl", "get", "httproute.gateway.networking.k8s.io", "-A", "-o", "json"]) or {}
+        gateways = []
+        for item in ns_data.get("items", []):
+            ns = item["metadata"]["name"]
 
-        gateways_result = []
+            try:
+                # Recupero gateway del namespace
+                gw_output = subprocess.check_output(
+                    ["kubectl", "get", "gateway.gateway.networking.k8s.io", "-n", ns, "-o", "json"],
+                    text=True
+                )
+                gw_data = yaml.safe_load(gw_output)
 
-        for ns_item in ns_data.get("items", []):
-            ns = ns_item["metadata"]["name"]
-            gw_data = run_kubectl(["kubectl", "get", "gateway.gateway.networking.k8s.io", "-n", ns, "-o", "json"])
-            if not gw_data:
-                continue
+                for gw in gw_data.get("items", []):
+                    gw_name = gw["metadata"]["name"]
+                    spec = gw.get("spec", {})
+                    status = gw.get("status", {})
+                    listeners = spec.get("listeners", [])
 
-            for gw in gw_data.get("items", []):
-                gw_name = gw["metadata"]["name"]
-                ip = gw.get("status", {}).get("addresses", [{}])[0].get("value", "")
-                for listener in gw.get("spec", {}).get("listeners", []):
-                    listener_name = listener.get("name")
-                    listener_port = listener.get("port")
-                    listener_protocol = listener.get("protocol")
-                    listener_obj = {
-                        "gatewayName": gw_name,
+                    # Prendi IP da status (dinamico)
+                    ip = ""
+                    if "addresses" in status and status["addresses"]:
+                        ip = status["addresses"][0].get("value", "")
+
+                    # Inizializza oggetto gateway
+                    gw_entry = {
                         "namespace": ns,
+                        "name": gw_name,
                         "ip": ip,
-                        "listenerName": listener_name,
-                        "port": listener_port,
-                        "protocol": listener_protocol,
-                        "kind": gw.get("kind"),
-                        "routes": []
+                        "listeners": [],
+                        "policies": []
                     }
 
-                    # aggiungi L4Route collegate a questo listener
-                    for item in l4_data.get("items", []):
-                        for parent in item.get("spec", {}).get("parentRefs", []):
-                            if parent.get("name") == gw_name and parent.get("sectionName") == listener_name:
-                                listener_obj["routes"].append({
-                                    "type": "L4Route",
-                                    "name": item["metadata"]["name"],
-                                    "protocol": item["spec"].get("protocol", ""),
-                                    "backends": [
-                                        f"{b['name']}:{b['port']}" for r in item["spec"].get("rules", []) for b in r.get("backendRefs", [])
-                                    ]
-                                })
+                    # --- Recupera policies che referenziano questo gateway ---
+                    try:
+                        pol_output = subprocess.check_output(
+                            ["kubectl", "get", "f5bigfwpolicy.k8s.f5net.com", "-o", "json"],
+                            text=True
+                        )
+                        pol_data = yaml.safe_load(pol_output)
 
-                    # aggiungi HTTPRoute collegate a questo listener
-                    for item in http_data.get("items", []):
-                        for parent in item.get("spec", {}).get("parentRefs", []):
-                            if parent.get("name") == gw_name and parent.get("sectionName") == listener_name:
-                                for rule in item["spec"].get("rules", []):
-                                    for match in rule.get("matches", [{}]):
-                                        listener_obj["routes"].append({
-                                            "type": "HTTPRoute",
-                                            "name": item["metadata"]["name"],
-                                            "match": match,
-                                            "backends": [f"{b['name']}:{b['port']}" for b in rule.get("backendRefs", [])]
-                                        })
+                        for pol in pol_data.get("items", []):
+                            target_refs = pol.get("spec", {}).get("targetRefs", [])
+                            for tref in target_refs:
+                                if tref.get("kind") == "Gateway" and tref.get("name") == gw_name and tref.get("namespace", ns) == ns:
+                                    gw_entry["policies"].append({
+                                        "name": pol["metadata"]["name"],
+                                        "reason": pol.get("status", {}).get("conditions", [{}])[0].get("reason", ""),
+                                        "message": pol.get("status", {}).get("conditions", [{}])[0].get("message", "")
+                                    })
+                    except subprocess.CalledProcessError:
+                        pass
 
-                    gateways_result.append(listener_obj)
+                    # --- Aggiungi listeners e route collegate ---
+                    for listener in listeners:
+                        listener_entry = {
+                            "name": listener.get("name", ""),
+                            "port": listener.get("port", ""),
+                            "protocol": listener.get("protocol", ""),
+                            "routes": []
+                        }
 
-        return {"gateways": gateways_result}
+                        # Recupera L4Route e HTTPRoute
+                        for route_kind, route_cmd in [
+                            ("L4Route", ["kubectl", "get", "l4route.gateway.k8s.f5net.com", "-n", ns, "-o", "json"]),
+                            ("HTTPRoute", ["kubectl", "get", "httproute.gateway.networking.k8s.io", "-n", ns, "-o", "json"]),
+                        ]:
+                            try:
+                                route_output = subprocess.check_output(route_cmd, text=True)
+                                route_data = yaml.safe_load(route_output)
+
+                                for route in route_data.get("items", []):
+                                    parent_refs = route.get("spec", {}).get("parentRefs", [])
+                                    for pref in parent_refs:
+                                        if pref.get("name") == gw_name and pref.get("sectionName") == listener.get("name"):
+                                            # Aggiungi route al listener
+                                            route_entry = {
+                                                "kind": route_kind,
+                                                "name": route["metadata"]["name"],
+                                                "matches": [],
+                                                "backends": []
+                                            }
+
+                                            if route_kind == "L4Route":
+                                                for rule in route.get("spec", {}).get("rules", []):
+                                                    for be in rule.get("backendRefs", []):
+                                                        route_entry["backends"].append(f"{be.get('name')}:{be.get('port')}")
+                                            elif route_kind == "HTTPRoute":
+                                                for rule in route.get("spec", {}).get("rules", []):
+                                                    # Matches
+                                                    for match in rule.get("matches", []):
+                                                        if "headers" in match:
+                                                            for h in match["headers"]:
+                                                                route_entry["matches"].append(f"{h.get('name')}: {h.get('value')}")
+                                                        if "path" in match:
+                                                            route_entry["matches"].append(f"{match['path']['type']}: {match['path']['value']}")
+                                                    # Backends
+                                                    for be in rule.get("backendRefs", []):
+                                                        route_entry["backends"].append(f"{be.get('name')}:{be.get('port')}")
+
+                                            listener_entry["routes"].append(route_entry)
+                            except subprocess.CalledProcessError:
+                                pass
+
+                        gw_entry["listeners"].append(listener_entry)
+
+                    gateways.append(gw_entry)
+
+            except subprocess.CalledProcessError:
+                pass
+
+        return {"gateways": gateways}
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
