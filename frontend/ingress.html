@@ -33,7 +33,7 @@
     }
     .policy-details {
       background-color: #f9f9f9;
-      border-left: 4px solid #4CAF50;
+      border-left: 4px solid #a8337a;
     }
     .policy-details td {
       padding: 15px;
@@ -101,7 +101,7 @@
   </style>
 </head>
 <body>
-  <h2>BNK Applications</h2>
+  <h2>Applications</h2>
 
   <div class="controls">
     <label for="nsFilter">Listener Namespace filter:</label>
@@ -364,13 +364,17 @@
               if (rule.action === 'accept') actionClass = 'action-accept';
               else if (rule.action === 'reject') actionClass = 'action-reject';
               
+              const source = rule.source && rule.source.trim() !== '' ? rule.source.replace(/, /g, '<br>') : 'any';
+              const destination = rule.destination && rule.destination.trim() !== '' ? rule.destination.replace(/, /g, '<br>') : 'any';
+              const ports = rule.ports && rule.ports.trim() !== '' ? rule.ports.replace(/, /g, '<br>') : 'any';
+              
               html += `<tr>
                 <td><strong>${rule.name}</strong></td>
                 <td><span class="${actionClass}">${rule.action.toUpperCase()}</span></td>
                 <td>${rule.ipProtocol}</td>
-                <td>${rule.source || '-'}</td>
-                <td>${rule.destination || '-'}</td>
-                <td>${rule.ports || '-'}</td>
+                <td>${source}</td>
+                <td>${destination}</td>
+                <td>${ports}</td>
                 <td>${rule.logging}</td>
               </tr>`;
             });

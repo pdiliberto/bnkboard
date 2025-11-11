@@ -8,6 +8,7 @@ COPY gateways.html .
 COPY ingress.html .
 COPY egress.html .
 COPY fwpolicies.html .
+COPY bnk-logo.png .
 COPY style.css .
 
 COPY nginx.conf /etc/nginx/conf.d/default.conf

@@ -65,7 +65,7 @@
   </style>
 </head>
 <body>
-  <h2>BNK Firewall Policies</h2>
+  <h2>Firewall Policies</h2>
 
   <div class="controls">
     <label for="typeFilter">Type filter:</label>
@@ -90,6 +90,7 @@
     </select>
 
     <button id="manualRefresh">Refresh</button>
+    <button id="exportExcel" style="margin-left: auto;">Export to Excel</button>
   </div>
 
   <table id="policies-table">
@@ -277,58 +278,62 @@
             // Action
             const tdAction = document.createElement('td');
             let actionClass = 'action-drop';
-            if (rule.action === 'accept') actionClass = 'action-accept';
-            else if (rule.action === 'reject') actionClass = 'action-reject';
-            tdAction.innerHTML = `<span class="${actionClass}">${rule.action.toUpperCase()}</span>`;
+            const action = (rule.action || '').toLowerCase();
+            if (action === 'accept') actionClass = 'action-accept';
+            else if (action === 'reject') actionClass = 'action-reject';
+            tdAction.innerHTML = `<span class="${actionClass}">${action.toUpperCase()}</span>`;
             tr.appendChild(tdAction);
             
             // SRC IP
             const tdSource = document.createElement('td');
-            tdSource.textContent = rule.source || '-';
+            const srcIp = rule.source && rule.source.trim() !== '' ? rule.source : 'any';
+            tdSource.innerHTML = srcIp === 'any' ? 'any' : srcIp.replace(/, /g, '<br>');
             tr.appendChild(tdSource);
             
             // SRC Port
             const tdSourcePorts = document.createElement('td');
-            tdSourcePorts.textContent = rule.sourcePorts || '-';
+            const srcPorts = rule.sourcePorts && rule.sourcePorts.trim() !== '' ? rule.sourcePorts : 'any';
+            tdSourcePorts.innerHTML = srcPorts === 'any' ? 'any' : srcPorts.replace(/, /g, '<br>');
             tr.appendChild(tdSourcePorts);
             
             // DST IP
             const tdDestination = document.createElement('td');
-            if (rule.destination && rule.destination !== '') {
-              // Se la regola ha una destination specifica, usala
-              tdDestination.textContent = rule.destination;
-            } else if (policy.type === 'ingress' && policy.gatewayIp && policy.gatewayIp !== '-') {
-              // Per ingress senza destination nella regola, usa l'IP del gateway
-              tdDestination.textContent = policy.gatewayIp;
+            if (policy.type === 'ingress') {
+              // Per ingress usa sempre l'IP del gateway
+              tdDestination.textContent = policy.gatewayIp || policy.ip || 'any';
             } else {
-              tdDestination.textContent = '-';
+              // Per egress usa la destination dalla regola
+              const dstIp = rule.destination && rule.destination.trim() !== '' ? rule.destination : 'any';
+              tdDestination.innerHTML = dstIp === 'any' ? 'any' : dstIp.replace(/, /g, '<br>');
             }
             tr.appendChild(tdDestination);
             
             // DST Port
             const tdDestPorts = document.createElement('td');
-            if (policy.type === 'egress') {
-              // Per egress usa le porte dalla regola
-              tdDestPorts.textContent = rule.destinationPorts || '-';
+            if (policy.type === 'ingress') {
+              // Per ingress usa sempre la porta del listener
+              tdDestPorts.textContent = policy.port || 'any';
             } else {
-              // Per ingress usa la porta del listener
-              tdDestPorts.textContent = policy.port;
+              // Per egress usa le porte dalla regola
+              const dstPorts = rule.destinationPorts && rule.destinationPorts.trim() !== '' ? rule.destinationPorts : 'any';
+              tdDestPorts.innerHTML = dstPorts === 'any' ? 'any' : dstPorts.replace(/, /g, '<br>');
             }
             tr.appendChild(tdDestPorts);
             
             // Protocol
             const tdProtocol = document.createElement('td');
-            // Per egress mostra il protocollo dalla regola, per ingress dalla policy
-            if (policy.type === 'egress') {
-              tdProtocol.textContent = rule.ipProtocol || 'any';
+            if (policy.type === 'ingress') {
+              // Per ingress usa sempre il protocollo del listener
+              tdProtocol.textContent = (policy.protocol || '').toLowerCase();
             } else {
-              tdProtocol.textContent = policy.protocol;
+              // Per egress usa il protocollo dalla regola
+              tdProtocol.textContent = (rule.ipProtocol || 'any').toLowerCase();
             }
             tr.appendChild(tdProtocol);
             
             // Logging
             const tdLogging = document.createElement('td');
-            tdLogging.textContent = rule.logging;
+            tdLogging.textContent = (rule.logging || '').toString().toLowerCase();
             tr.appendChild(tdLogging);
             
             tbody.appendChild(tr);
@@ -366,6 +371,62 @@
     document.getElementById("nsFilter").addEventListener("change", renderTable);
     document.getElementById("refreshInterval").addEventListener("change", setupAutoRefresh);
     document.getElementById("manualRefresh").addEventListener("click", loadPolicies);
+    document.getElementById("exportExcel").addEventListener("click", exportToExcel);
+
+    function exportToExcel() {
+      // Prepara i dati per Excel
+      let csvContent = "Policy Name,Type,Gateway/Listener or Egress,Namespace,Rule Name,Action,SRC IP,SRC Port,DST IP,DST Port,Protocol,Logging\n";
+      
+      const selectedType = document.getElementById("typeFilter").value;
+      const selectedNS = document.getElementById("nsFilter").value;
+
+      let filteredPolicies = allPolicies.filter(p => {
+        if (selectedType && p.type !== selectedType) return false;
+        if (selectedNS && !p.namespace.includes(selectedNS)) return false;
+        return true;
+      });
+
+      filteredPolicies = sortPolicies(filteredPolicies);
+
+      filteredPolicies.forEach(policy => {
+        if (!policy.rules || policy.rules.length === 0) {
+          csvContent += `"${policy.policyName}","${policy.type}","${policy.app}","${policy.namespace}","","","","","","","",""\n`;
+        } else {
+          policy.rules.forEach(rule => {
+            const action = (rule.action || '').toLowerCase();
+            const srcIp = rule.source && rule.source.trim() !== '' ? rule.source.replace(/,/g, ';') : 'any';
+            const srcPorts = rule.sourcePorts && rule.sourcePorts.trim() !== '' ? rule.sourcePorts.replace(/,/g, ';') : 'any';
+            
+            let dstIp, dstPort, protocol;
+            
+            if (policy.type === 'ingress') {
+              dstIp = policy.gatewayIp || policy.ip || 'any';
+              dstPort = policy.port || 'any';
+              protocol = (policy.protocol || '').toLowerCase();
+            } else {
+              dstIp = rule.destination && rule.destination.trim() !== '' ? rule.destination.replace(/,/g, ';') : 'any';
+              dstPort = rule.destinationPorts && rule.destinationPorts.trim() !== '' ? rule.destinationPorts.replace(/,/g, ';') : 'any';
+              protocol = (rule.ipProtocol || 'any').toLowerCase();
+            }
+            
+            const logging = (rule.logging || '').toString().toLowerCase();
+            
+            csvContent += `"${policy.policyName}","${policy.type}","${policy.app}","${policy.namespace}","${rule.name}","${action}","${srcIp}","${srcPorts}","${dstIp}","${dstPort}","${protocol}","${logging}"\n`;
+          });
+        }
+      });
+
+      // Crea il file e scarica
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", `firewall-policies-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
 
     // carica dati al load
     loadPolicies();

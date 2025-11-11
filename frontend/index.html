@@ -1,198 +1,132 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>BNK Rules Dashboard</title>
-<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8">
+  <title>BNKdashboard</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+    }
+    
+    .header {
+      text-align: left;
+      margin-bottom: 30px;
+      padding-left: 40px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+    
+    .logo {
+      width: 80px;
+      height: 80px;
+    }
+    
+    .title {
+      font-size: 3em;
+      font-weight: bold;
+      margin: 0;
+      padding: 20px 0;
+    }
+    
+    .title-bnk {
+      color: #a8337a;
+    }
+    
+    .title-dash {
+      color: #c0c0c0;
+    }
+    
+    .title-board {
+      color: #000;
+    }
+    
+    .nav-buttons {
+      display: flex;
+      gap: 15px;
+      justify-content: flex-start;
+      margin-bottom: 30px;
+      padding: 20px 0 20px 40px;
+      border-bottom: 2px solid #e0e0e0;
+    }
+    
+    .nav-button {
+      padding: 12px 30px;
+      font-size: 1.1em;
+      font-weight: bold;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      background-color: #d0d0d0;
+      transition: all 0.3s;
+    }
+    
+    .nav-button:hover {
+      background-color: #c0c0c0;
+    }
+    
+    .nav-button.active {
+      color: #a8337a;
+      text-shadow: 
+        1px 1px 2px rgba(0, 0, 0, 0.3);
+    }
+    
+    .nav-button.inactive {
+      color: #000;
+      text-shadow: 
+        1px 1px 1px rgba(255, 255, 255, 0.5),
+        -1px -1px 1px rgba(0, 0, 0, 0.3);
+    }
+    
+    .content-frame {
+      width: 100%;
+      height: calc(100vh - 250px);
+      border: none;
+      border-radius: 5px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+  </style>
 </head>
 <body>
-  <h2>BNK Rules Dashboard</h2>
-
-  <div class="controls">
-    <label for="targetFilter">target filter:</label>
-    <select id="targetFilter">
-      <option value="">All</option>
-    </select>
-
-    <label for="refreshInterval">refresh interval:</label>
-    <select id="refreshInterval">
-      <option value="5000">5 seconds</option>
-      <option value="20000">20 seconds</option>
-      <option value="60000">1 minute</option>
-      <option value="manual">Manual</option>
-    </select>
-
-    <button id="manualRefresh">Refresh</button>
-    <button onclick="exportTablesToExcel()">Export XLS</button>
+  <div class="header">
+    <img src="bnk-logo.png" alt="BNK Logo" class="logo">
+    <h1 class="title">
+      <span class="title-bnk">BNK</span><span class="title-dash">-</span><span class="title-board">board</span>
+    </h1>
   </div>
-
-  <table id="rules-table">
-    <thead>
-      <tr>
-	<th>Policy</th>
-        <th>Target</th>
-        <th>Rule Name</th>
-        <th>Protocol</th>
-        <th>Source</th>
-        <th>Destination</th>
-        <th>Destination Ports</th>
-        <th>Action</th>
-        <th>Logging</th>
-        <th>Description</th>
-        <th>Creation Timestamp</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-
-  <script> 
-    console.log("Script caricato");
-    document.addEventListener("DOMContentLoaded", () => {
-      console.log("DOM pronto");
-      fetchRules();
-      setupAutoRefresh();
-    });
-
-    let allRules = [];
-    let refreshTimer = null;
-
-    async function fetchRules() {
-      try {
-        console.log("Fetching rules...");
-        const res = await fetch('/api/firewall-rules');
-        console.log("Response status:", res.status);
-        allRules = await res.json();
-        console.log("Data received:", allRules);
-        populateFilter();
-        renderTable();
-      } catch (err) {
-        console.error("Errore nel fetch:", err);
-      }
-    }
-
-    function populateFilter() {
-      const select = document.getElementById("targetFilter");
-      const currentSelection = select.value;
-
-      const targets = new Set();
-      allRules.forEach(r => {
-        r.target.split("\n").forEach(t => targets.add(t));
-      });
-
-      select.innerHTML = '<option value="">All</option>';
-      Array.from(targets).sort().forEach(t => {
-        const option = document.createElement('option');
-        option.value = t;
-        option.textContent = t;
-        select.appendChild(option);
-      });
-
-      if (currentSelection && Array.from(select.options).some(o => o.value === currentSelection)) {
-        select.value = currentSelection;
-      }
-    }
-
-    function renderTable() {
-      const tbody = document.querySelector('#rules-table tbody');
-      tbody.innerHTML = '';
-
-      const selectedTarget = document.getElementById("targetFilter").value;
-
-      allRules.forEach(rule => {
-        if (selectedTarget && !rule.target.includes(selectedTarget)) return;
-
-        const tr = document.createElement('tr');
-
-        Object.entries(rule).forEach(([key, val]) => {
-          const td = document.createElement('td');
-
-          if (key === "source" || key === "destination") {
-            td.textContent = (val || '').split(',').map(v => v.trim().replace('/32','')).join("\n");
-          } else if (key === "ports") {
-            td.textContent = (val || '').split(',').join("\n");
-          } else {
-            td.textContent = val ?? '';
-          }
-
-          if (key === "action") {
-            const action = (val || "").toLowerCase();
-            if (action === "drop") td.classList.add("drop");
-            else if (action === "accept") td.classList.add("accept");
-          }
-
-          tr.appendChild(td);
+  
+  <div class="nav-buttons">
+    <button class="nav-button active" data-page="fwpolicies.html">Policies</button>
+    <button class="nav-button inactive" data-page="ingress.html">Applications</button>
+    <button class="nav-button inactive" data-page="egress.html">Egress</button>
+  </div>
+  
+  <iframe id="contentFrame" class="content-frame" src="fwpolicies.html"></iframe>
+  
+  <script>
+    const buttons = document.querySelectorAll('.nav-button');
+    const iframe = document.getElementById('contentFrame');
+    
+    buttons.forEach(button => {
+      button.addEventListener('click', () => {
+        // Rimuovi active da tutti i pulsanti
+        buttons.forEach(btn => {
+          btn.classList.remove('active');
+          btn.classList.add('inactive');
         });
-
-        tbody.appendChild(tr);
+        
+        // Aggiungi active al pulsante cliccato
+        button.classList.remove('inactive');
+        button.classList.add('active');
+        
+        // Carica la pagina nell'iframe
+        const page = button.getAttribute('data-page');
+        iframe.src = page;
       });
-    }
-
-    function setupAutoRefresh() {
-      const intervalSelect = document.getElementById("refreshInterval");
-      if (refreshTimer) clearInterval(refreshTimer);
-
-      const value = intervalSelect.value;
-      if (value !== "manual") {
-        refreshTimer = setInterval(fetchRules, parseInt(value));
-      }
-    }
-
-    document.getElementById("targetFilter").addEventListener("change", renderTable);
-    document.getElementById("refreshInterval").addEventListener("change", setupAutoRefresh);
-    document.getElementById("manualRefresh").addEventListener("click", fetchRules);
-
-    // --- EXPORT XLS ---
-    function exportTablesToExcel(filename = "rules_export.xls") {
-      const tables = document.querySelectorAll("table");
-      if (tables.length === 0) {
-        alert("No tables to export!");
-        return;
-      }
-
-      let html = `
-        <html xmlns:o="urn:schemas-microsoft-com:office:office" 
-              xmlns:x="urn:schemas-microsoft-com:office:excel" 
-              xmlns="http://www.w3.org/TR/REC-html40">
-        <head>
-          <!--[if gte mso 9]>
-          <xml>
-            <x:ExcelWorkbook>
-              <x:ExcelWorksheets>
-      `;
-
-      tables.forEach((table, idx) => {
-        html += `
-          <x:ExcelWorksheet>
-            <x:Name>Table${idx + 1}</x:Name>
-            <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
-          </x:ExcelWorksheet>
-        `;
-      });
-
-      html += `
-              </x:ExcelWorksheets>
-            </x:ExcelWorkbook>
-          </xml>
-          <![endif]-->
-        </head><body>
-      `;
-
-      tables.forEach((table, idx) => {
-        html += `<h3>Table ${idx + 1}</h3>` + table.outerHTML + "<br/>";
-      });
-
-      html += `</body></html>`;
-
-      const blob = new Blob([html], { type: "application/vnd.ms-excel" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    }
+    });
   </script>
 </body>
 </html>
-
