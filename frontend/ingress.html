@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>BNK Applications</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    td pre {
+      margin: 0;
+      white-space: pre-wrap;
+    }
+    th {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    th:hover {
+      background-color: #f0f0f0;
+    }
+    th.sorted-asc::after {
+      content: " ↑";
+      font-size: 0.9em;
+    }
+    th.sorted-desc::after {
+      content: " ↓";
+      font-size: 0.9em;
+    }
+    .expandable-row {
+      cursor: pointer;
+    }
+    .expandable-row:hover {
+      background-color: #f5f5f5;
+    }
+    .policy-details {
+      background-color: #f9f9f9;
+      border-left: 4px solid #4CAF50;
+    }
+    .policy-details td {
+      padding: 15px;
+    }
+    .policy-box {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .policy-title {
+      font-weight: bold;
+      color: #2196F3;
+      margin-bottom: 8px;
+      font-size: 1.1em;
+    }
+    .policy-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9em;
+      margin-top: 10px;
+    }
+    .policy-table th {
+      background-color: #f0f0f0;
+      padding: 8px;
+      text-align: left;
+      border: 1px solid #ddd;
+      font-weight: 600;
+    }
+    .policy-table td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      vertical-align: top;
+    }
+    .policy-table tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+    .policy-table tr:hover {
+      background-color: #f5f5f5;
+    }
+    .rule-item {
+      background: #f5f5f5;
+      padding: 8px;
+      margin: 5px 0;
+      border-radius: 3px;
+      font-size: 0.9em;
+    }
+    .rule-name {
+      font-weight: bold;
+      color: #333;
+    }
+    .action-accept {
+      color: #4CAF50;
+      font-weight: bold;
+    }
+    .action-drop {
+      color: #f44336;
+      font-weight: bold;
+    }
+    .action-reject {
+      color: #FF9800;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>BNK Applications</h2>
+
+  <div class="controls">
+    <label for="nsFilter">Listener Namespace filter:</label>
+    <select id="nsFilter">
+      <option value="">All</option>
+    </select>
+
+    <label for="refreshInterval">Refresh interval:</label>
+    <select id="refreshInterval">
+      <option value="5000">5 seconds</option>
+      <option value="20000">20 seconds</option>
+      <option value="60000">1 minute</option>
+      <option value="manual">Manual</option>
+    </select>
+
+    <button id="manualRefresh">Refresh</button>
+  </div>
+
+  <table id="apps-table">
+    <thead>
+      <tr>
+        <th data-column="app">APP</th>
+        <th data-column="listenerNamespace">Listener Namespace</th>
+        <th data-column="kind">Kind</th>
+        <th data-column="protocol">Protocol</th>
+        <th data-column="ip">IP</th>
+        <th data-column="port">Port</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let refreshTimer = null;
+    let allApps = [];
+    let policiesData = {};
+    let expandedRows = new Set();
+    let sortColumn = 'app';
+    let sortDirection = 'asc';
+
+    async function loadPolicies() {
+      try {
+        const res = await fetch('/api/security-policies');
+        const data = await res.json();
+        policiesData = data.policies || {};
+      } catch (err) {
+        console.error("Error loading policies:", err);
+      }
+    }
+
+    async function loadApps() {
+      try {
+        await loadPolicies(); // Carica sempre le policy prima
+        const res = await fetch('/api/gateways');
+        const data = await res.json();
+        
+        // Trasforma i dati da gateway-centric a app-centric
+        allApps = [];
+        
+        (data.gateways || []).forEach(gw => {
+          if (!gw.routes || gw.routes.length === 0) return;
+          
+          gw.routes.forEach(route => {
+            // Per ogni backend, crea una entry
+            (route.backends || []).forEach(backend => {
+              // Parse del backend formato: namespace/service:port
+              const parts = backend.split('/');
+              if (parts.length < 2) return;
+              
+              const appNamespace = parts[0];
+              const servicePart = parts[1]; // service:port
+              const serviceName = servicePart.split(':')[0];
+              
+              // Determina l'APP name con namespace tra parentesi
+              let appName = serviceName;
+              if (route.type === "HTTPRoute" && route.match && route.match.headers) {
+                // Cerca l'header Host
+                const hostHeader = route.match.headers.find(h => h.name === "Host");
+                if (hostHeader) {
+                  appName = hostHeader.value;
+                }
+              }
+              appName = `${appName} (${appNamespace})`;
+              
+              // Determina Kind e Protocol
+              let kind = route.type === "HTTPRoute" ? "L7" : "L4";
+              let protocol = "";
+              
+              if (route.type === "HTTPRoute") {
+                // HTTP o HTTPS basato sul protocol del listener
+                protocol = gw.protocol === "HTTPS" ? "HTTPS" : "HTTP";
+              } else {
+                // L4Route: usa il protocol della route
+                protocol = route.protocol || "TCP";
+              }
+              
+              allApps.push({
+                app: appName,
+                listenerNamespace: gw.namespace,
+                kind: kind,
+                protocol: protocol,
+                ip: gw.ip,
+                port: gw.port,
+                gatewayName: gw.gatewayName,
+                listenerName: gw.listenerName
+              });
+            });
+          });
+        });
+        
+        populateNamespaceFilter();
+        sortAndRender();
+      } catch (err) {
+        console.error("Error loading apps:", err);
+      }
+    }
+
+    function populateNamespaceFilter() {
+      const select = document.getElementById("nsFilter");
+      const currentSelection = select.value;
+
+      const namespaces = new Set(allApps.map(app => app.listenerNamespace));
+      select.innerHTML = '<option value="">All</option>';
+      Array.from(namespaces).sort().forEach(ns => {
+        const option = document.createElement('option');
+        option.value = ns;
+        option.textContent = ns;
+        select.appendChild(option);
+      });
+
+      if (currentSelection && Array.from(select.options).some(o => o.value === currentSelection)) {
+        select.value = currentSelection;
+      }
+    }
+
+    function sortApps(apps) {
+      return apps.sort((a, b) => {
+        let aVal = a[sortColumn];
+        let bVal = b[sortColumn];
+        
+        // Converti a numeri se è una porta
+        if (sortColumn === 'port') {
+          aVal = parseInt(aVal) || 0;
+          bVal = parseInt(bVal) || 0;
+        }
+        
+        // Confronta
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    function sortAndRender() {
+      updateSortIndicators();
+      renderTable();
+    }
+
+    function updateSortIndicators() {
+      document.querySelectorAll('th').forEach(th => {
+        th.classList.remove('sorted-asc', 'sorted-desc');
+        if (th.dataset.column === sortColumn) {
+          th.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        }
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.querySelector('#apps-table tbody');
+      tbody.innerHTML = '';
+
+      const selectedNS = document.getElementById("nsFilter").value;
+
+      let filteredApps = allApps.filter(app => {
+        if (selectedNS && app.listenerNamespace !== selectedNS) return false;
+        return true;
+      });
+
+      // Ordina
+      filteredApps = sortApps(filteredApps);
+
+      filteredApps.forEach((app, index) => {
+        const uniqueRowId = `row-${index}`; // ID univoco per ogni riga
+        const policyKey = `${app.gatewayName}|${app.listenerName}|${app.listenerNamespace}`;
+        
+        const tr = document.createElement('tr');
+        tr.classList.add('expandable-row');
+        tr.dataset.rowId = uniqueRowId;
+        tr.dataset.policyKey = policyKey;
+        
+        ['app', 'listenerNamespace', 'kind', 'protocol', 'ip', 'port'].forEach(key => {
+          const td = document.createElement('td');
+          td.textContent = app[key] || '';
+          tr.appendChild(td);
+        });
+        
+        tr.addEventListener('click', () => togglePolicyDetails(uniqueRowId, policyKey, tr));
+        tbody.appendChild(tr);
+        
+        // Se la riga è espansa, mostra i dettagli
+        if (expandedRows.has(uniqueRowId)) {
+          const detailsRow = createPolicyDetailsRow(policyKey);
+          tbody.appendChild(detailsRow);
+        }
+      });
+    }
+
+    function togglePolicyDetails(uniqueRowId, policyKey, clickedRow) {
+      if (expandedRows.has(uniqueRowId)) {
+        expandedRows.delete(uniqueRowId);
+        // Rimuovi la riga di dettagli
+        const nextRow = clickedRow.nextElementSibling;
+        if (nextRow && nextRow.classList.contains('policy-details')) {
+          nextRow.remove();
+        }
+      } else {
+        expandedRows.add(uniqueRowId);
+        // Aggiungi la riga di dettagli
+        const detailsRow = createPolicyDetailsRow(policyKey);
+        clickedRow.after(detailsRow);
+      }
+    }
+
+    function createPolicyDetailsRow(policyKey) {
+      const tr = document.createElement('tr');
+      tr.classList.add('policy-details');
+      
+      const td = document.createElement('td');
+      td.colSpan = 6;
+      
+      const policies = policiesData[policyKey] || [];
+      
+      if (policies.length === 0) {
+        td.innerHTML = '<div style="padding: 10px; color: #999;">No security policies attached to this listener</div>';
+      } else {
+        let html = '';
+        policies.forEach(policy => {
+          html += `<div class="policy-box">
+            <div class="policy-title">📋 Policy: ${policy.policyName} (${policy.namespace})</div>`;
+          
+          if (policy.rules.length === 0) {
+            html += '<div style="color: #999; font-size: 0.9em;">No rules defined</div>';
+          } else {
+            html += `<table class="policy-table">
+              <thead>
+                <tr>
+                  <th>Rule Name</th>
+                  <th>Action</th>
+                  <th>Protocol</th>
+                  <th>Source</th>
+                  <th>Destination</th>
+                  <th>Ports</th>
+                  <th>Logging</th>
+                </tr>
+              </thead>
+              <tbody>`;
+            
+            policy.rules.forEach(rule => {
+              let actionClass = 'action-drop';
+              if (rule.action === 'accept') actionClass = 'action-accept';
+              else if (rule.action === 'reject') actionClass = 'action-reject';
+              
+              html += `<tr>
+                <td><strong>${rule.name}</strong></td>
+                <td><span class="${actionClass}">${rule.action.toUpperCase()}</span></td>
+                <td>${rule.ipProtocol}</td>
+                <td>${rule.source || '-'}</td>
+                <td>${rule.destination || '-'}</td>
+                <td>${rule.ports || '-'}</td>
+                <td>${rule.logging}</td>
+              </tr>`;
+            });
+            
+            html += `</tbody></table>`;
+          }
+          
+          html += '</div>';
+        });
+        td.innerHTML = html;
+      }
+      
+      tr.appendChild(td);
+      return tr;
+    }
+
+    function setupAutoRefresh() {
+      const intervalSelect = document.getElementById("refreshInterval");
+      if (refreshTimer) clearInterval(refreshTimer);
+
+      const value = intervalSelect.value;
+      if (value !== "manual") {
+        refreshTimer = setInterval(loadApps, parseInt(value));
+      }
+    }
+
+    // Gestione click sugli header per ordinamento
+    document.querySelectorAll('th[data-column]').forEach(th => {
+      th.addEventListener('click', () => {
+        const column = th.dataset.column;
+        if (sortColumn === column) {
+          // Toggle direction
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          // Nuova colonna, default ascendente
+          sortColumn = column;
+          sortDirection = 'asc';
+        }
+        sortAndRender();
+      });
+    });
+
+    // eventi
+    document.getElementById("nsFilter").addEventListener("change", renderTable);
+    document.getElementById("refreshInterval").addEventListener("change", setupAutoRefresh);
+    document.getElementById("manualRefresh").addEventListener("click", loadApps);
+
+    // carica dati al load
+    async function initApp() {
+      await loadPolicies();
+      await loadApps();
+      setupAutoRefresh();
+    }
+    
+    initApp();
+  </script>
+</body>
+</html>

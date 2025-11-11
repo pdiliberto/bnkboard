@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>BNK Egress</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    td pre {
+      margin: 0;
+      white-space: pre-wrap;
+    }
+    th {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    th:hover {
+      background-color: #f0f0f0;
+    }
+    th.sorted-asc::after {
+      content: " ↑";
+      font-size: 0.9em;
+    }
+    th.sorted-desc::after {
+      content: " ↓";
+      font-size: 0.9em;
+    }
+    .clickable {
+      color: #2196F3;
+      cursor: pointer;
+    }
+    .clickable:hover {
+      color: #1976D2;
+      text-decoration: underline;
+    }
+    .details-row {
+      background-color: #f9f9f9;
+      border-left: 4px solid #4CAF50;
+    }
+    .details-row td {
+      padding: 15px;
+    }
+    .detail-box {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 10px;
+      margin-bottom: 10px;
+    }
+    .detail-title {
+      font-weight: bold;
+      color: #2196F3;
+      margin-bottom: 8px;
+      font-size: 1.1em;
+    }
+    .address-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .address-item {
+      background: #E3F2FD;
+      padding: 6px 12px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 0.9em;
+    }
+    .policy-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9em;
+      margin-top: 10px;
+    }
+    .policy-table th {
+      background-color: #f0f0f0;
+      padding: 8px;
+      text-align: left;
+      border: 1px solid #ddd;
+      font-weight: 600;
+    }
+    .policy-table td {
+      padding: 8px;
+      border: 1px solid #ddd;
+      vertical-align: top;
+    }
+    .policy-table tr:nth-child(even) {
+      background-color: #fafafa;
+    }
+    .policy-table tr:hover {
+      background-color: #f5f5f5;
+    }
+    .action-accept {
+      color: #4CAF50;
+      font-weight: bold;
+    }
+    .action-drop {
+      color: #f44336;
+      font-weight: bold;
+    }
+    .action-reject {
+      color: #FF9800;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+  <h2>BNK Egress Configurations</h2>
+
+  <div class="controls">
+    <label for="refreshInterval">Refresh interval:</label>
+    <select id="refreshInterval">
+      <option value="5000">5 seconds</option>
+      <option value="20000">20 seconds</option>
+      <option value="60000">1 minute</option>
+      <option value="manual">Manual</option>
+    </select>
+
+    <button id="manualRefresh">Refresh</button>
+  </div>
+
+  <table id="egress-table">
+    <thead>
+      <tr>
+        <th data-column="name">Name</th>
+        <th data-column="appNamespaces">App Namespaces</th>
+        <th data-column="snatType">SNAT Type</th>
+        <th data-column="snatpool">SNAT Pool</th>
+        <th data-column="firewallPolicy">Firewall Policy</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let refreshTimer = null;
+    let allEgress = [];
+    let snatpoolsData = {};
+    let policiesData = {};
+    let expandedRows = {}; // Cambiato da Set a Object per tracciare il tipo
+    let sortColumn = 'name';
+    let sortDirection = 'asc';
+
+    async function loadSnatpools() {
+      try {
+        const res = await fetch('/api/snatpools');
+        const data = await res.json();
+        snatpoolsData = data.snatpools || {};
+      } catch (err) {
+        console.error("Error loading snatpools:", err);
+      }
+    }
+
+    async function loadPolicies() {
+      try {
+        const res = await fetch('/api/firewall-policies');
+        const data = await res.json();
+        policiesData = data.policies || {};
+      } catch (err) {
+        console.error("Error loading policies:", err);
+      }
+    }
+
+    async function loadEgress() {
+      try {
+        await loadSnatpools();
+        await loadPolicies();
+        
+        const res = await fetch('/api/egress');
+        const data = await res.json();
+        allEgress = data.egress || [];
+        sortAndRender();
+      } catch (err) {
+        console.error("Error loading egress:", err);
+      }
+    }
+
+    function sortEgress(egress) {
+      return egress.sort((a, b) => {
+        let aVal = a[sortColumn] || '';
+        let bVal = b[sortColumn] || '';
+        
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    function sortAndRender() {
+      updateSortIndicators();
+      renderTable();
+    }
+
+    function updateSortIndicators() {
+      document.querySelectorAll('th').forEach(th => {
+        th.classList.remove('sorted-asc', 'sorted-desc');
+        if (th.dataset.column === sortColumn) {
+          th.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        }
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.querySelector('#egress-table tbody');
+      tbody.innerHTML = '';
+
+      let sortedEgress = sortEgress([...allEgress]);
+
+      sortedEgress.forEach((egress, index) => {
+        const uniqueRowId = `egress-${index}`;
+        const tr = document.createElement('tr');
+        tr.dataset.rowId = uniqueRowId;
+        
+        // Name
+        const tdName = document.createElement('td');
+        tdName.textContent = egress.name;
+        tr.appendChild(tdName);
+        
+        // App Namespaces
+        const tdAppNs = document.createElement('td');
+        tdAppNs.textContent = egress.appNamespaces || '-';
+        tr.appendChild(tdAppNs);
+        
+        // SNAT Type
+        const tdSnatType = document.createElement('td');
+        tdSnatType.textContent = egress.snatType || '-';
+        tr.appendChild(tdSnatType);
+        
+        // SNAT Pool (clickable)
+        const tdSnatpool = document.createElement('td');
+        if (egress.snatpool) {
+          const span = document.createElement('span');
+          span.className = 'clickable';
+          span.textContent = egress.snatpool;
+          span.onclick = (e) => {
+            e.stopPropagation();
+            toggleDetails(uniqueRowId, 'snatpool', egress, tr);
+          };
+          tdSnatpool.appendChild(span);
+        } else {
+          tdSnatpool.textContent = '-';
+        }
+        tr.appendChild(tdSnatpool);
+        
+        // Firewall Policy (clickable)
+        const tdFw = document.createElement('td');
+        if (egress.firewallPolicy) {
+          const span = document.createElement('span');
+          span.className = 'clickable';
+          span.textContent = egress.firewallPolicy;
+          span.onclick = (e) => {
+            e.stopPropagation();
+            toggleDetails(uniqueRowId, 'policy', egress, tr);
+          };
+          tdFw.appendChild(span);
+        } else {
+          tdFw.textContent = '-';
+        }
+        tr.appendChild(tdFw);
+        
+        tbody.appendChild(tr);
+        
+        // Se la riga è espansa, mostra i dettagli
+        if (expandedRows[uniqueRowId]) {
+          const detailsRow = createDetailsRow(uniqueRowId, egress, expandedRows[uniqueRowId]);
+          tbody.appendChild(detailsRow);
+        }
+      });
+    }
+
+    function toggleDetails(uniqueRowId, type, egress, clickedRow) {
+      // Rimuovi eventuali espansioni esistenti per questa riga
+      const nextRow = clickedRow.nextElementSibling;
+      if (nextRow && nextRow.classList.contains('details-row')) {
+        nextRow.remove();
+      }
+      
+      // Se stavi cliccando sullo stesso tipo già espanso, chiudi completamente
+      if (expandedRows[uniqueRowId] === type) {
+        delete expandedRows[uniqueRowId];
+        return;
+      }
+      
+      // Altrimenti, espandi con il nuovo tipo
+      expandedRows[uniqueRowId] = type;
+      
+      const detailsRow = createDetailsRow(uniqueRowId, egress, type);
+      clickedRow.after(detailsRow);
+    }
+
+    function createDetailsRow(uniqueRowId, egress, type) {
+      const tr = document.createElement('tr');
+      tr.classList.add('details-row');
+      
+      const td = document.createElement('td');
+      td.colSpan = 5;
+      
+      if (type === 'snatpool') {
+        const key = `${egress.namespace}|${egress.snatpool}`;
+        const snatpool = snatpoolsData[key];
+        
+        if (!snatpool) {
+          td.innerHTML = '<div style="padding: 10px; color: #999;">SNAT Pool not found</div>';
+        } else {
+          let html = `<div class="detail-box">
+            <div class="detail-title">🔄 SNAT Pool: ${snatpool.name}</div>
+            <div><strong>Addresses:</strong></div>
+            <div class="address-list">`;
+          
+          if (snatpool.addresses.length === 0) {
+            html += '<span style="color: #999;">No addresses configured</span>';
+          } else {
+            snatpool.addresses.forEach(addr => {
+              html += `<div class="address-item">${addr}</div>`;
+            });
+          }
+          
+          html += '</div></div>';
+          td.innerHTML = html;
+        }
+      } else if (type === 'policy') {
+        const key = `${egress.namespace}|${egress.firewallPolicy}`;
+        const policy = policiesData[key];
+        
+        if (!policy) {
+          td.innerHTML = '<div style="padding: 10px; color: #999;">Firewall Policy not found</div>';
+        } else {
+          let html = `<div class="detail-box">
+            <div class="detail-title">🔒 Firewall Policy: ${policy.name}</div>`;
+          
+          if (policy.rules.length === 0) {
+            html += '<div style="color: #999; font-size: 0.9em;">No rules defined</div>';
+          } else {
+            html += `<table class="policy-table">
+              <thead>
+                <tr>
+                  <th>Rule Name</th>
+                  <th>Action</th>
+                  <th>Protocol</th>
+                  <th>Source</th>
+                  <th>Destination</th>
+                  <th>Ports</th>
+                  <th>Logging</th>
+                </tr>
+              </thead>
+              <tbody>`;
+            
+            policy.rules.forEach(rule => {
+              let actionClass = 'action-drop';
+              if (rule.action === 'accept') actionClass = 'action-accept';
+              else if (rule.action === 'reject') actionClass = 'action-reject';
+              
+              html += `<tr>
+                <td><strong>${rule.name}</strong></td>
+                <td><span class="${actionClass}">${rule.action.toUpperCase()}</span></td>
+                <td>${rule.ipProtocol}</td>
+                <td>${rule.source || '-'}</td>
+                <td>${rule.destination || '-'}</td>
+                <td>${rule.ports || '-'}</td>
+                <td>${rule.logging}</td>
+              </tr>`;
+            });
+            
+            html += `</tbody></table>`;
+          }
+          
+          html += '</div>';
+          td.innerHTML = html;
+        }
+      }
+      
+      tr.appendChild(td);
+      return tr;
+    }
+
+    function setupAutoRefresh() {
+      const intervalSelect = document.getElementById("refreshInterval");
+      if (refreshTimer) clearInterval(refreshTimer);
+
+      const value = intervalSelect.value;
+      if (value !== "manual") {
+        refreshTimer = setInterval(loadEgress, parseInt(value));
+      }
+    }
+
+    // Gestione click sugli header per ordinamento
+    document.querySelectorAll('th[data-column]').forEach(th => {
+      th.addEventListener('click', () => {
+        const column = th.dataset.column;
+        if (sortColumn === column) {
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortColumn = column;
+          sortDirection = 'asc';
+        }
+        sortAndRender();
+      });
+    });
+
+    // eventi
+    document.getElementById("refreshInterval").addEventListener("change", setupAutoRefresh);
+    document.getElementById("manualRefresh").addEventListener("click", loadEgress);
+
+    // carica dati al load
+    loadEgress();
+    setupAutoRefresh();
+  </script>
+</body>
+</html>

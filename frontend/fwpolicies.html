@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>BNK Firewall Policies</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    td pre {
+      margin: 0;
+      white-space: pre-wrap;
+    }
+    th {
+      cursor: pointer;
+      user-select: none;
+      position: relative;
+    }
+    th:hover {
+      background-color: #f0f0f0;
+    }
+    th.sorted-asc::after {
+      content: " ↑";
+      font-size: 0.9em;
+    }
+    th.sorted-desc::after {
+      content: " ↓";
+      font-size: 0.9em;
+    }
+    .expandable-row {
+      cursor: default;
+    }
+    .expandable-row:hover {
+      background-color: inherit;
+    }
+    .action-accept {
+      color: #4CAF50;
+      font-weight: bold;
+    }
+    .action-drop {
+      color: #f44336;
+      font-weight: bold;
+    }
+    .action-reject {
+      color: #FF9800;
+      font-weight: bold;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 0.85em;
+      font-weight: 600;
+    }
+    .badge-ingress {
+      background-color: #2196F3;
+      color: white;
+    }
+    .badge-egress {
+      background-color: #FF9800;
+      color: white;
+    }
+    .badge-unassociated {
+      background-color: #9E9E9E;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <h2>BNK Firewall Policies</h2>
+
+  <div class="controls">
+    <label for="typeFilter">Type filter:</label>
+    <select id="typeFilter">
+      <option value="">All</option>
+      <option value="ingress">Ingress</option>
+      <option value="egress">Egress</option>
+      <option value="unassociated">Unassociated</option>
+    </select>
+
+    <label for="nsFilter">Namespace filter:</label>
+    <select id="nsFilter">
+      <option value="">All</option>
+    </select>
+
+    <label for="refreshInterval">Refresh interval:</label>
+    <select id="refreshInterval">
+      <option value="5000">5 seconds</option>
+      <option value="20000">20 seconds</option>
+      <option value="60000">1 minute</option>
+      <option value="manual">Manual</option>
+    </select>
+
+    <button id="manualRefresh">Refresh</button>
+  </div>
+
+  <table id="policies-table">
+    <thead>
+      <tr>
+        <th data-column="policyName">Policy Name</th>
+        <th data-column="type">Type</th>
+        <th data-column="app">Gateway/Listener or Egress</th>
+        <th data-column="namespace">Namespace</th>
+        <th data-column="ruleName">Rule Name</th>
+        <th data-column="action">Action</th>
+        <th data-column="source">SRC IP</th>
+        <th data-column="sourcePorts">SRC Port</th>
+        <th data-column="destination">DST IP</th>
+        <th data-column="destinationPorts">DST Port</th>
+        <th data-column="protocol">Protocol</th>
+        <th data-column="logging">Logging</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <script>
+    let refreshTimer = null;
+    let allPolicies = [];
+    let sortColumn = 'policyName';
+    let sortDirection = 'asc';
+
+    async function loadPolicies() {
+      try {
+        const res = await fetch('/api/all-firewall-policies');
+        const data = await res.json();
+        allPolicies = data.policies || [];
+        populateFilters();
+        sortAndRender();
+      } catch (err) {
+        console.error("Error loading policies:", err);
+      }
+    }
+
+    function populateFilters() {
+      const nsSelect = document.getElementById("nsFilter");
+      const currentNsSelection = nsSelect.value;
+
+      const namespaces = new Set(allPolicies.map(p => p.namespace));
+      nsSelect.innerHTML = '<option value="">All</option>';
+      Array.from(namespaces).sort().forEach(ns => {
+        const option = document.createElement('option');
+        option.value = ns;
+        option.textContent = ns;
+        nsSelect.appendChild(option);
+      });
+
+      if (currentNsSelection && Array.from(nsSelect.options).some(o => o.value === currentNsSelection)) {
+        nsSelect.value = currentNsSelection;
+      }
+    }
+
+    function sortPolicies(policies) {
+      return policies.sort((a, b) => {
+        let aVal = a[sortColumn] || '';
+        let bVal = b[sortColumn] || '';
+        
+        if (sortColumn === 'port') {
+          aVal = aVal === '-' ? -1 : parseInt(aVal) || 0;
+          bVal = bVal === '-' ? -1 : parseInt(bVal) || 0;
+        }
+        
+        if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    function sortAndRender() {
+      updateSortIndicators();
+      renderTable();
+    }
+
+    function updateSortIndicators() {
+      document.querySelectorAll('th').forEach(th => {
+        th.classList.remove('sorted-asc', 'sorted-desc');
+        if (th.dataset.column === sortColumn) {
+          th.classList.add(sortDirection === 'asc' ? 'sorted-asc' : 'sorted-desc');
+        }
+      });
+    }
+
+    function renderTable() {
+      const tbody = document.querySelector('#policies-table tbody');
+      tbody.innerHTML = '';
+
+      const selectedType = document.getElementById("typeFilter").value;
+      const selectedNS = document.getElementById("nsFilter").value;
+
+      let filteredPolicies = allPolicies.filter(p => {
+        if (selectedType && p.type !== selectedType) return false;
+        if (selectedNS && !p.namespace.includes(selectedNS)) return false;
+        return true;
+      });
+
+      filteredPolicies = sortPolicies(filteredPolicies);
+
+      filteredPolicies.forEach((policy) => {
+        // Se non ci sono regole, mostra una riga con info base
+        if (!policy.rules || policy.rules.length === 0) {
+          const tr = document.createElement('tr');
+          
+          // Policy Name
+          const tdName = document.createElement('td');
+          tdName.textContent = policy.policyName;
+          tr.appendChild(tdName);
+          
+          // Type
+          const tdType = document.createElement('td');
+          const badgeClass = policy.type === 'ingress' ? 'badge-ingress' : 
+                            policy.type === 'egress' ? 'badge-egress' : 'badge-unassociated';
+          tdType.innerHTML = `<span class="badge ${badgeClass}">${policy.type.toUpperCase()}</span>`;
+          tr.appendChild(tdType);
+          
+          // App
+          const tdApp = document.createElement('td');
+          tdApp.textContent = policy.app;
+          tr.appendChild(tdApp);
+          
+          // Namespace
+          const tdNs = document.createElement('td');
+          tdNs.textContent = policy.namespace;
+          tr.appendChild(tdNs);
+          
+          // Colonne vuote per le regole
+          for (let i = 0; i < 8; i++) {
+            const td = document.createElement('td');
+            td.textContent = '-';
+            tr.appendChild(td);
+          }
+          
+          tbody.appendChild(tr);
+        } else {
+          // Una riga per ogni regola con rowSpan per le prime 4 colonne
+          policy.rules.forEach((rule, ruleIndex) => {
+            const tr = document.createElement('tr');
+            
+            // Policy Name (solo sulla prima regola con rowSpan)
+            if (ruleIndex === 0) {
+              const tdName = document.createElement('td');
+              tdName.textContent = policy.policyName;
+              if (policy.rules.length > 1) {
+                tdName.rowSpan = policy.rules.length;
+              }
+              tr.appendChild(tdName);
+              
+              // Type (solo sulla prima regola con rowSpan)
+              const tdType = document.createElement('td');
+              const badgeClass = policy.type === 'ingress' ? 'badge-ingress' : 
+                                policy.type === 'egress' ? 'badge-egress' : 'badge-unassociated';
+              tdType.innerHTML = `<span class="badge ${badgeClass}">${policy.type.toUpperCase()}</span>`;
+              if (policy.rules.length > 1) {
+                tdType.rowSpan = policy.rules.length;
+              }
+              tr.appendChild(tdType);
+              
+              // App (solo sulla prima regola con rowSpan)
+              const tdApp = document.createElement('td');
+              tdApp.textContent = policy.app;
+              if (policy.rules.length > 1) {
+                tdApp.rowSpan = policy.rules.length;
+              }
+              tr.appendChild(tdApp);
+              
+              // Namespace (solo sulla prima regola con rowSpan)
+              const tdNs = document.createElement('td');
+              tdNs.textContent = policy.namespace;
+              if (policy.rules.length > 1) {
+                tdNs.rowSpan = policy.rules.length;
+              }
+              tr.appendChild(tdNs);
+            }
+            
+            // Rule Name
+            const tdRuleName = document.createElement('td');
+            tdRuleName.innerHTML = `<strong>${rule.name}</strong>`;
+            tr.appendChild(tdRuleName);
+            
+            // Action
+            const tdAction = document.createElement('td');
+            let actionClass = 'action-drop';
+            if (rule.action === 'accept') actionClass = 'action-accept';
+            else if (rule.action === 'reject') actionClass = 'action-reject';
+            tdAction.innerHTML = `<span class="${actionClass}">${rule.action.toUpperCase()}</span>`;
+            tr.appendChild(tdAction);
+            
+            // SRC IP
+            const tdSource = document.createElement('td');
+            tdSource.textContent = rule.source || '-';
+            tr.appendChild(tdSource);
+            
+            // SRC Port
+            const tdSourcePorts = document.createElement('td');
+            tdSourcePorts.textContent = rule.sourcePorts || '-';
+            tr.appendChild(tdSourcePorts);
+            
+            // DST IP
+            const tdDestination = document.createElement('td');
+            if (rule.destination && rule.destination !== '') {
+              // Se la regola ha una destination specifica, usala
+              tdDestination.textContent = rule.destination;
+            } else if (policy.type === 'ingress' && policy.gatewayIp && policy.gatewayIp !== '-') {
+              // Per ingress senza destination nella regola, usa l'IP del gateway
+              tdDestination.textContent = policy.gatewayIp;
+            } else {
+              tdDestination.textContent = '-';
+            }
+            tr.appendChild(tdDestination);
+            
+            // DST Port
+            const tdDestPorts = document.createElement('td');
+            if (policy.type === 'egress') {
+              // Per egress usa le porte dalla regola
+              tdDestPorts.textContent = rule.destinationPorts || '-';
+            } else {
+              // Per ingress usa la porta del listener
+              tdDestPorts.textContent = policy.port;
+            }
+            tr.appendChild(tdDestPorts);
+            
+            // Protocol
+            const tdProtocol = document.createElement('td');
+            // Per egress mostra il protocollo dalla regola, per ingress dalla policy
+            if (policy.type === 'egress') {
+              tdProtocol.textContent = rule.ipProtocol || 'any';
+            } else {
+              tdProtocol.textContent = policy.protocol;
+            }
+            tr.appendChild(tdProtocol);
+            
+            // Logging
+            const tdLogging = document.createElement('td');
+            tdLogging.textContent = rule.logging;
+            tr.appendChild(tdLogging);
+            
+            tbody.appendChild(tr);
+          });
+        }
+      });
+    }
+
+    function setupAutoRefresh() {
+      const intervalSelect = document.getElementById("refreshInterval");
+      if (refreshTimer) clearInterval(refreshTimer);
+
+      const value = intervalSelect.value;
+      if (value !== "manual") {
+        refreshTimer = setInterval(loadPolicies, parseInt(value));
+      }
+    }
+
+    // Gestione click sugli header per ordinamento
+    document.querySelectorAll('th[data-column]').forEach(th => {
+      th.addEventListener('click', () => {
+        const column = th.dataset.column;
+        if (sortColumn === column) {
+          sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+          sortColumn = column;
+          sortDirection = 'asc';
+        }
+        sortAndRender();
+      });
+    });
+
+    // eventi
+    document.getElementById("typeFilter").addEventListener("change", renderTable);
+    document.getElementById("nsFilter").addEventListener("change", renderTable);
+    document.getElementById("refreshInterval").addEventListener("change", setupAutoRefresh);
+    document.getElementById("manualRefresh").addEventListener("click", loadPolicies);
+
+    // carica dati al load
+    loadPolicies();
+    setupAutoRefresh();
+  </script>
+</body>
+</html>
