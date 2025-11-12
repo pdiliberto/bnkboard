@@ -5,109 +5,155 @@
   <title>BNKdashboard</title>
   <link rel="stylesheet" href="style.css">
   <style>
-    body {
+    * {
       margin: 0;
-      padding: 20px;
-      font-family: Arial, sans-serif;
-      position: relative;
+      padding: 0;
+      box-sizing: border-box;
     }
     
-    .header {
-      text-align: left;
-      margin-bottom: 30px;
-      padding-left: 40px;
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #e4e8ec 100%);
+      overflow-x: hidden;
+    }
+    
+    .dashboard-container {
+      display: flex;
+      min-height: 100vh;
+    }
+    
+    .sidebar {
+      width: 280px;
+      background: white;
+      box-shadow: 2px 0 20px rgba(0,0,0,0.08);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: fixed;
+      height: 100vh;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .sidebar.collapsed {
+      transform: translateX(-280px);
+    }
+    
+    .sidebar-header {
+      padding: 30px 20px;
+      border-bottom: 1px solid #e0e0e0;
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 15px;
     }
     
     .logo {
-      width: 80px;
-      height: 80px;
+      width: 50px;
+      height: 50px;
+      flex-shrink: 0;
     }
     
-    .title {
-      font-size: 3em;
-      font-weight: bold;
-      margin: 0;
-      padding: 20px 0;
+    .brand {
+      font-size: 1.8em;
+      font-weight: 700;
     }
     
-    .title-bnk {
+    .brand-bnk {
       color: #a8337a;
     }
     
-    .title-dash {
+    .brand-dash {
       color: #c0c0c0;
       display: inline-block;
       animation: rotateDash 10.5s infinite;
     }
     
     @keyframes rotateDash {
-      0% {
-        transform: rotate(0deg);
-      }
-      4.76% {
-        transform: rotate(360deg);
-      }
-      100% {
-        transform: rotate(360deg);
-      }
+      0% { transform: rotate(0deg); }
+      4.76% { transform: rotate(360deg); }
+      100% { transform: rotate(360deg); }
     }
     
-    .title-board {
+    .brand-board {
       color: #000;
     }
     
-    .nav-buttons {
-      display: flex;
-      gap: 15px;
-      justify-content: flex-start;
-      margin-bottom: 30px;
-      padding: 20px 0 20px 40px;
-      border-bottom: 2px solid #e0e0e0;
+    .sidebar-nav {
+      flex: 1;
+      padding: 20px 0;
+      overflow-y: auto;
     }
     
-    .nav-button {
-      padding: 12px 30px;
-      font-size: 1.1em;
-      font-weight: bold;
-      border: none;
-      border-radius: 5px;
+    .nav-item {
+      padding: 16px 24px;
       cursor: pointer;
-      background-color: #d0d0d0;
-      transition: all 0.3s;
+      transition: all 0.2s;
+      font-weight: 600;
+      color: #333;
+      border-left: 4px solid transparent;
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
     
-    .nav-button:hover {
-      background-color: #c0c0c0;
+    .nav-item:hover {
+      background: #f5f5f5;
+      border-left-color: #a8337a;
     }
     
-    .nav-button.active {
+    .nav-item.active {
+      background: linear-gradient(90deg, rgba(168, 51, 122, 0.1) 0%, transparent 100%);
       color: #a8337a;
-      text-shadow: 
-        1px 1px 2px rgba(0, 0, 0, 0.3);
+      border-left-color: #a8337a;
     }
     
-    .nav-button.inactive {
-      color: #000;
-      text-shadow: 
-        1px 1px 1px rgba(255, 255, 255, 0.5),
-        -1px -1px 1px rgba(0, 0, 0, 0.3);
+    .nav-icon {
+      font-size: 1.2em;
     }
     
-    .content-frame {
-      width: 100%;
-      height: calc(100vh - 250px);
+    .sidebar-footer {
+      padding: 20px;
+      border-top: 1px solid #e0e0e0;
+    }
+    
+    .main-content {
+      flex: 1;
+      margin-left: 280px;
+      transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      min-height: 100vh;
+    }
+    
+    .main-content.expanded {
+      margin-left: 0;
+    }
+    
+    .top-bar {
+      background: white;
+      padding: 20px 40px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .menu-toggle {
+      background: none;
       border: none;
-      border-radius: 5px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      font-size: 1.5em;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      transition: background 0.2s;
+    }
+    
+    .menu-toggle:hover {
+      background: #f5f5f5;
     }
     
     .user-menu {
-      position: absolute;
-      top: 20px;
-      right: 40px;
+      position: relative;
     }
     
     .user-dropdown {
@@ -117,82 +163,141 @@
     
     .user-button {
       padding: 10px 20px;
-      background-color: #f5f5f5;
-      border: 2px solid #ddd;
-      border-radius: 5px;
+      background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+      border: none;
+      border-radius: 25px;
       cursor: pointer;
-      font-weight: bold;
+      font-weight: 600;
       color: #333;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
     }
     
     .user-button:hover {
-      background-color: #e0e0e0;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     }
     
     .dropdown-content {
       display: none;
       position: absolute;
       right: 0;
-      background-color: white;
-      min-width: 160px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-      border-radius: 5px;
-      margin-top: 5px;
+      background: white;
+      min-width: 180px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+      border-radius: 12px;
+      margin-top: 8px;
       z-index: 1000;
+      overflow: hidden;
     }
     
     .dropdown-content a {
       color: #333;
-      padding: 12px 16px;
+      padding: 14px 18px;
       text-decoration: none;
       display: block;
-      border-radius: 5px;
+      transition: background 0.2s;
+      font-weight: 500;
     }
     
     .dropdown-content a:hover {
-      background-color: #f5f5f5;
+      background: #f5f5f5;
     }
     
     .user-dropdown.active .dropdown-content {
       display: block;
+      animation: slideDown 0.2s ease;
+    }
+    
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .content-wrapper {
+      padding: 30px 40px;
+    }
+    
+    .content-frame {
+      width: 100%;
+      height: calc(100vh - 140px);
+      border: none;
+      border-radius: 16px;
+      background: white;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
     }
   </style>
 </head>
 <body>
-  <div class="user-menu">
-    <div class="user-dropdown" id="userDropdown">
-      <button class="user-button" id="userButton">
-        <span>👤</span>
-        <span id="usernameDisplay">admin</span>
-        <span>▼</span>
-      </button>
-      <div class="dropdown-content">
-        <a href="api-docs.html" target="_blank">API Doc</a>
-        <a href="#" id="logoutLink">Logout</a>
+  <div class="dashboard-container">
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <img src="bnk-logo.png" alt="BNK Logo" class="logo">
+        <div class="brand">
+          <span class="brand-bnk">BNK</span><span class="brand-dash">-</span><span class="brand-board">board</span>
+        </div>
       </div>
-    </div>
+      
+      <nav class="sidebar-nav">
+        <div class="nav-item active" data-page="fwpolicies.html">
+          <span class="nav-icon">🔒</span>
+          <span>Policies</span>
+        </div>
+        <div class="nav-item" data-page="ingress.html">
+          <span class="nav-icon">📱</span>
+          <span>Applications</span>
+        </div>
+        <div class="nav-item" data-page="egress.html">
+          <span class="nav-icon">🚀</span>
+          <span>Egress</span>
+        </div>
+      </nav>
+      
+      <div class="sidebar-footer">
+        <div style="font-size: 0.85em; color: #999; text-align: center;">
+          v1.0.0
+        </div>
+      </div>
+    </aside>
+    
+    <!-- Main Content -->
+    <main class="main-content" id="mainContent">
+      <div class="top-bar">
+        <button class="menu-toggle" id="menuToggle">☰</button>
+        
+        <div class="user-menu">
+          <div class="user-dropdown" id="userDropdown">
+            <button class="user-button" id="userButton">
+              <span>👤</span>
+              <span id="usernameDisplay">admin</span>
+              <span>▼</span>
+            </button>
+            <div class="dropdown-content">
+              <a href="api-docs.html" target="_blank">📚 API Doc</a>
+              <a href="#" id="logoutLink">🚪 Logout</a>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="content-wrapper">
+        <iframe id="contentFrame" class="content-frame" src="fwpolicies.html"></iframe>
+      </div>
+    </main>
   </div>
-  
-  <div class="header">
-    <img src="bnk-logo.png" alt="BNK Logo" class="logo">
-    <h1 class="title">
-      <span class="title-bnk">BNK</span><span class="title-dash">-</span><span class="title-board">board</span>
-    </h1>
-  </div>
-  
-  <div class="nav-buttons">
-    <button class="nav-button active" data-page="fwpolicies.html">Policies</button>
-    <button class="nav-button inactive" data-page="ingress.html">Applications</button>
-    <button class="nav-button inactive" data-page="egress.html">Egress</button>
-  </div>
-  
-  <iframe id="contentFrame" class="content-frame" src="fwpolicies.html"></iframe>
   
   <script>
-    // Funzione per leggere un cookie
+    // Cookie functions
     function getCookie(name) {
       const nameEQ = name + "=";
       const ca = document.cookie.split(';');
@@ -204,12 +309,11 @@
       return null;
     }
     
-    // Funzione per cancellare un cookie
     function deleteCookie(name) {
       document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     }
     
-    // Controlla autenticazione (prima cookie, poi sessionStorage)
+    // Auth check
     const isLoggedInCookie = getCookie('isLoggedIn');
     const isLoggedInSession = sessionStorage.getItem('isLoggedIn');
     
@@ -217,13 +321,23 @@
       window.location.href = 'login.html';
     }
     
-    // Mostra username (prima da cookie, poi da sessionStorage)
+    // Show username
     const username = getCookie('username') || sessionStorage.getItem('username');
     if (username) {
       document.getElementById('usernameDisplay').textContent = username;
     }
     
-    // Gestione dropdown
+    // Sidebar toggle
+    const sidebar = document.getElementById('sidebar');
+    const mainContent = document.getElementById('mainContent');
+    const menuToggle = document.getElementById('menuToggle');
+    
+    menuToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('collapsed');
+      mainContent.classList.toggle('expanded');
+    });
+    
+    // User dropdown
     const userDropdown = document.getElementById('userDropdown');
     const userButton = document.getElementById('userButton');
     
@@ -232,7 +346,6 @@
       userDropdown.classList.toggle('active');
     });
     
-    // Chiudi dropdown se clicchi fuori
     document.addEventListener('click', () => {
       userDropdown.classList.remove('active');
     });
@@ -240,32 +353,22 @@
     // Logout
     document.getElementById('logoutLink').addEventListener('click', (e) => {
       e.preventDefault();
-      // Cancella cookie
       deleteCookie('isLoggedIn');
       deleteCookie('username');
-      // Cancella sessionStorage
       sessionStorage.clear();
       window.location.href = 'login.html';
     });
     
-    // Navigazione
-    const buttons = document.querySelectorAll('.nav-button');
+    // Navigation
+    const navItems = document.querySelectorAll('.nav-item');
     const iframe = document.getElementById('contentFrame');
     
-    buttons.forEach(button => {
-      button.addEventListener('click', () => {
-        // Rimuovi active da tutti i pulsanti
-        buttons.forEach(btn => {
-          btn.classList.remove('active');
-          btn.classList.add('inactive');
-        });
+    navItems.forEach(item => {
+      item.addEventListener('click', () => {
+        navItems.forEach(nav => nav.classList.remove('active'));
+        item.classList.add('active');
         
-        // Aggiungi active al pulsante cliccato
-        button.classList.remove('inactive');
-        button.classList.add('active');
-        
-        // Carica la pagina nell'iframe
-        const page = button.getAttribute('data-page');
+        const page = item.getAttribute('data-page');
         iframe.src = page;
       });
     });

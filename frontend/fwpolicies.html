@@ -3,69 +3,214 @@
 <head>
   <meta charset="UTF-8">
   <title>BNK Firewall Policies</title>
-  <link rel="stylesheet" href="style.css">
   <style>
-    td pre {
+    * {
       margin: 0;
-      white-space: pre-wrap;
+      padding: 0;
+      box-sizing: border-box;
     }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: transparent;
+      padding: 20px;
+    }
+    
+    h2 {
+      font-size: 2em;
+      color: #1a1a1a;
+      margin-bottom: 24px;
+      font-weight: 700;
+    }
+    
+    .controls {
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      margin-bottom: 20px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    .controls label {
+      font-weight: 600;
+      color: #555;
+      font-size: 0.9em;
+    }
+    
+    .controls select {
+      padding: 10px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 0.95em;
+      background: white;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+    
+    .controls select:hover {
+      border-color: #a8337a;
+    }
+    
+    .controls select:focus {
+      outline: none;
+      border-color: #a8337a;
+      box-shadow: 0 0 0 3px rgba(168, 51, 122, 0.1);
+    }
+    
+    .controls button {
+      padding: 10px 24px;
+      background: linear-gradient(135deg, #a8337a 0%, #8a2a62 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(168, 51, 122, 0.3);
+    }
+    
+    .controls button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(168, 51, 122, 0.4);
+    }
+    
+    .controls button:active {
+      transform: translateY(0);
+    }
+    
+    #exportExcel {
+      background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+      box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+      margin-left: auto;
+    }
+    
+    #exportExcel:hover {
+      box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+    }
+    
+    .table-container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      overflow: hidden;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    
+    thead {
+      background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+    
     th {
+      padding: 16px 12px;
+      text-align: left;
+      font-weight: 700;
+      color: #333;
+      font-size: 0.85em;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
       cursor: pointer;
       user-select: none;
       position: relative;
+      transition: background 0.2s;
     }
+    
     th:hover {
-      background-color: #f0f0f0;
+      background: rgba(168, 51, 122, 0.08);
     }
+    
     th.sorted-asc::after {
       content: " ↑";
-      font-size: 0.9em;
+      color: #a8337a;
+      font-size: 1em;
     }
+    
     th.sorted-desc::after {
       content: " ↓";
-      font-size: 0.9em;
-    }
-    .expandable-row {
-      cursor: default;
-    }
-    .expandable-row:hover {
-      background-color: inherit;
-    }
-    .action-accept {
-      color: #2196F3;
-      font-weight: bold;
-    }
-    .action-drop {
       color: #a8337a;
-      font-weight: bold;
+      font-size: 1em;
     }
-    .action-reject {
-      color: #FF9800;
-      font-weight: bold;
+    
+    tbody tr {
+      border-bottom: 1px solid #f0f0f0;
+      transition: all 0.2s;
     }
+    
+    tbody tr:hover {
+      background: linear-gradient(90deg, rgba(168, 51, 122, 0.04) 0%, transparent 100%);
+    }
+    
+    td {
+      padding: 16px 12px;
+      color: #444;
+      font-size: 0.95em;
+    }
+    
     .badge {
       display: inline-block;
-      padding: 3px 8px;
-      border-radius: 3px;
+      padding: 6px 12px;
+      border-radius: 6px;
       font-size: 0.85em;
-      font-weight: 600;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
     }
+    
     .badge-ingress {
-      background-color: #2196F3;
+      background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
       color: white;
+      box-shadow: 0 2px 6px rgba(33, 150, 243, 0.3);
     }
+    
     .badge-egress {
-      background-color: #FF9800;
+      background: linear-gradient(135deg, #FF9800 0%, #F57C00 100%);
       color: white;
+      box-shadow: 0 2px 6px rgba(255, 152, 0, 0.3);
     }
+    
     .badge-unassociated {
-      background-color: #9E9E9E;
-      color: white;
+      background: #e0e0e0;
+      color: #666;
+    }
+    
+    .action-accept {
+      color: #2196F3;
+      font-weight: 700;
+      padding: 4px 8px;
+      background: rgba(33, 150, 243, 0.1);
+      border-radius: 4px;
+    }
+    
+    .action-drop {
+      color: #a8337a;
+      font-weight: 700;
+      padding: 4px 8px;
+      background: rgba(168, 51, 122, 0.1);
+      border-radius: 4px;
+    }
+    
+    .action-reject {
+      color: #FF9800;
+      font-weight: 700;
+      padding: 4px 8px;
+      background: rgba(255, 152, 0, 0.1);
+      border-radius: 4px;
     }
   </style>
 </head>
 <body>
-  <h2>Firewall Policies</h2>
+  <h3>🔒 Firewall Policies</h2>
 
   <div class="controls">
     <label for="typeFilter">Type filter:</label>
@@ -89,29 +234,31 @@
       <option value="manual">Manual</option>
     </select>
 
-    <button id="manualRefresh">Refresh</button>
-    <button id="exportExcel" style="margin-left: auto;">Export to Excel</button>
+    <button id="manualRefresh">🔄 Refresh</button>
+    <button id="exportExcel">📊 Export to Excel</button>
   </div>
 
-  <table id="policies-table">
-    <thead>
-      <tr>
-        <th data-column="policyName">Policy Name</th>
-        <th data-column="type">Type</th>
-        <th data-column="app">Gateway/Listener or Egress</th>
-        <th data-column="namespace">Namespace</th>
-        <th data-column="ruleName">Rule Name</th>
-        <th data-column="action">Action</th>
-        <th data-column="source">SRC IP</th>
-        <th data-column="sourcePorts">SRC Port</th>
-        <th data-column="destination">DST IP</th>
-        <th data-column="destinationPorts">DST Port</th>
-        <th data-column="protocol">Protocol</th>
-        <th data-column="logging">Logging</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
+  <div class="table-container">
+    <table id="policies-table">
+      <thead>
+        <tr>
+          <th data-column="policyName">Policy Name</th>
+          <th data-column="type">Type</th>
+          <th data-column="app">Gateway/Listener or Egress</th>
+          <th data-column="namespace">Namespace</th>
+          <th data-column="ruleName">Rule Name</th>
+          <th data-column="action">Action</th>
+          <th data-column="source">SRC IP</th>
+          <th data-column="sourcePorts">SRC Port</th>
+          <th data-column="destination">DST IP</th>
+          <th data-column="destinationPorts">DST Port</th>
+          <th data-column="protocol">Protocol</th>
+          <th data-column="logging">Logging</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
 
   <script>
     let refreshTimer = null;
@@ -195,33 +342,27 @@
       filteredPolicies = sortPolicies(filteredPolicies);
 
       filteredPolicies.forEach((policy) => {
-        // Se non ci sono regole, mostra una riga con info base
         if (!policy.rules || policy.rules.length === 0) {
           const tr = document.createElement('tr');
           
-          // Policy Name
           const tdName = document.createElement('td');
           tdName.textContent = policy.policyName;
           tr.appendChild(tdName);
           
-          // Type
           const tdType = document.createElement('td');
           const badgeClass = policy.type === 'ingress' ? 'badge-ingress' : 
                             policy.type === 'egress' ? 'badge-egress' : 'badge-unassociated';
           tdType.innerHTML = `<span class="badge ${badgeClass}">${policy.type.toUpperCase()}</span>`;
           tr.appendChild(tdType);
           
-          // App
           const tdApp = document.createElement('td');
           tdApp.textContent = policy.app;
           tr.appendChild(tdApp);
           
-          // Namespace
           const tdNs = document.createElement('td');
           tdNs.textContent = policy.namespace;
           tr.appendChild(tdNs);
           
-          // Colonne vuote per le regole
           for (let i = 0; i < 8; i++) {
             const td = document.createElement('td');
             td.textContent = '-';
@@ -230,52 +371,31 @@
           
           tbody.appendChild(tr);
         } else {
-          // Una riga per ogni regola con rowSpan per le prime 4 colonne
           policy.rules.forEach((rule, ruleIndex) => {
             const tr = document.createElement('tr');
             
-            // Policy Name (solo sulla prima regola con rowSpan)
-            if (ruleIndex === 0) {
-              const tdName = document.createElement('td');
-              tdName.textContent = policy.policyName;
-              if (policy.rules.length > 1) {
-                tdName.rowSpan = policy.rules.length;
-              }
-              tr.appendChild(tdName);
-              
-              // Type (solo sulla prima regola con rowSpan)
-              const tdType = document.createElement('td');
-              const badgeClass = policy.type === 'ingress' ? 'badge-ingress' : 
-                                policy.type === 'egress' ? 'badge-egress' : 'badge-unassociated';
-              tdType.innerHTML = `<span class="badge ${badgeClass}">${policy.type.toUpperCase()}</span>`;
-              if (policy.rules.length > 1) {
-                tdType.rowSpan = policy.rules.length;
-              }
-              tr.appendChild(tdType);
-              
-              // App (solo sulla prima regola con rowSpan)
-              const tdApp = document.createElement('td');
-              tdApp.textContent = policy.app;
-              if (policy.rules.length > 1) {
-                tdApp.rowSpan = policy.rules.length;
-              }
-              tr.appendChild(tdApp);
-              
-              // Namespace (solo sulla prima regola con rowSpan)
-              const tdNs = document.createElement('td');
-              tdNs.textContent = policy.namespace;
-              if (policy.rules.length > 1) {
-                tdNs.rowSpan = policy.rules.length;
-              }
-              tr.appendChild(tdNs);
-            }
+            const tdName = document.createElement('td');
+            tdName.textContent = policy.policyName;
+            tr.appendChild(tdName);
             
-            // Rule Name
+            const tdType = document.createElement('td');
+            const badgeClass = policy.type === 'ingress' ? 'badge-ingress' : 
+                              policy.type === 'egress' ? 'badge-egress' : 'badge-unassociated';
+            tdType.innerHTML = `<span class="badge ${badgeClass}">${policy.type.toUpperCase()}</span>`;
+            tr.appendChild(tdType);
+            
+            const tdApp = document.createElement('td');
+            tdApp.textContent = policy.app;
+            tr.appendChild(tdApp);
+            
+            const tdNs = document.createElement('td');
+            tdNs.textContent = policy.namespace;
+            tr.appendChild(tdNs);
+            
             const tdRuleName = document.createElement('td');
             tdRuleName.innerHTML = `<strong>${rule.name}</strong>`;
             tr.appendChild(tdRuleName);
             
-            // Action
             const tdAction = document.createElement('td');
             let actionClass = 'action-drop';
             const action = (rule.action || '').toLowerCase();
@@ -284,54 +404,42 @@
             tdAction.innerHTML = `<span class="${actionClass}">${action.toUpperCase()}</span>`;
             tr.appendChild(tdAction);
             
-            // SRC IP
             const tdSource = document.createElement('td');
-            const srcIp = rule.source && rule.source.trim() !== '' ? rule.source : 'any';
-            tdSource.innerHTML = srcIp === 'any' ? 'any' : srcIp.replace(/, /g, '<br>');
+            const srcIp = rule.source && rule.source.trim() !== '' ? rule.source.replace(/, /g, '<br>') : 'any';
+            tdSource.innerHTML = srcIp;
             tr.appendChild(tdSource);
             
-            // SRC Port
             const tdSourcePorts = document.createElement('td');
-            const srcPorts = rule.sourcePorts && rule.sourcePorts.trim() !== '' ? rule.sourcePorts : 'any';
-            tdSourcePorts.innerHTML = srcPorts === 'any' ? 'any' : srcPorts.replace(/, /g, '<br>');
+            const srcPorts = rule.sourcePorts && rule.sourcePorts.trim() !== '' ? rule.sourcePorts.replace(/, /g, '<br>') : 'any';
+            tdSourcePorts.innerHTML = srcPorts;
             tr.appendChild(tdSourcePorts);
             
-            // DST IP
             const tdDestination = document.createElement('td');
             if (policy.type === 'ingress') {
-              // Per ingress usa sempre l'IP del gateway
               tdDestination.textContent = policy.gatewayIp || policy.ip || 'any';
             } else {
-              // Per egress usa la destination dalla regola
-              const dstIp = rule.destination && rule.destination.trim() !== '' ? rule.destination : 'any';
-              tdDestination.innerHTML = dstIp === 'any' ? 'any' : dstIp.replace(/, /g, '<br>');
+              const dstIp = rule.destination && rule.destination.trim() !== '' ? rule.destination.replace(/, /g, '<br>') : 'any';
+              tdDestination.innerHTML = dstIp;
             }
             tr.appendChild(tdDestination);
             
-            // DST Port
             const tdDestPorts = document.createElement('td');
             if (policy.type === 'ingress') {
-              // Per ingress usa sempre la porta del listener
               tdDestPorts.textContent = policy.port || 'any';
             } else {
-              // Per egress usa le porte dalla regola
-              const dstPorts = rule.destinationPorts && rule.destinationPorts.trim() !== '' ? rule.destinationPorts : 'any';
-              tdDestPorts.innerHTML = dstPorts === 'any' ? 'any' : dstPorts.replace(/, /g, '<br>');
+              const dstPorts = rule.destinationPorts && rule.destinationPorts.trim() !== '' ? rule.destinationPorts.replace(/, /g, '<br>') : 'any';
+              tdDestPorts.innerHTML = dstPorts;
             }
             tr.appendChild(tdDestPorts);
             
-            // Protocol
             const tdProtocol = document.createElement('td');
             if (policy.type === 'ingress') {
-              // Per ingress usa sempre il protocollo del listener
               tdProtocol.textContent = (policy.protocol || '').toLowerCase();
             } else {
-              // Per egress usa il protocollo dalla regola
               tdProtocol.textContent = (rule.ipProtocol || 'any').toLowerCase();
             }
             tr.appendChild(tdProtocol);
             
-            // Logging
             const tdLogging = document.createElement('td');
             tdLogging.textContent = (rule.logging || '').toString().toLowerCase();
             tr.appendChild(tdLogging);
@@ -352,7 +460,6 @@
       }
     }
 
-    // Gestione click sugli header per ordinamento
     document.querySelectorAll('th[data-column]').forEach(th => {
       th.addEventListener('click', () => {
         const column = th.dataset.column;
@@ -366,7 +473,6 @@
       });
     });
 
-    // eventi
     document.getElementById("typeFilter").addEventListener("change", renderTable);
     document.getElementById("nsFilter").addEventListener("change", renderTable);
     document.getElementById("refreshInterval").addEventListener("change", setupAutoRefresh);
@@ -374,7 +480,6 @@
     document.getElementById("exportExcel").addEventListener("click", exportToExcel);
 
     function exportToExcel() {
-      // Prepara i dati per Excel
       let csvContent = "Policy Name,Type,Gateway/Listener or Egress,Namespace,Rule Name,Action,SRC IP,SRC Port,DST IP,DST Port,Protocol,Logging\n";
       
       const selectedType = document.getElementById("typeFilter").value;
@@ -416,7 +521,6 @@
         }
       });
 
-      // Crea il file e scarica
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
       const link = document.createElement("a");
       const url = URL.createObjectURL(blob);
@@ -428,7 +532,6 @@
       document.body.removeChild(link);
     }
 
-    // carica dati al load
     loadPolicies();
     setupAutoRefresh();
   </script>
