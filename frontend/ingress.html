@@ -98,6 +98,23 @@
       color: #FF9800;
       font-weight: bold;
     }
+    .fw-indicator {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      display: inline-block;
+      margin: 0 auto;
+    }
+    .fw-active {
+      background-color: #a8337a;
+      box-shadow: 0 0 4px rgba(168, 51, 122, 0.5);
+    }
+    .fw-inactive {
+      background-color: #ccc;
+    }
+    td:has(.fw-indicator) {
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -124,11 +141,13 @@
     <thead>
       <tr>
         <th data-column="app">APP</th>
-        <th data-column="listenerNamespace">Listener Namespace</th>
-        <th data-column="kind">Kind</th>
+        <th data-column="fw">FW</th>
+        <th data-column="gatewayListener">Gateway:Listener</th>
+        <th data-column="route">Route</th>
         <th data-column="protocol">Protocol</th>
         <th data-column="ip">IP</th>
         <th data-column="port">Port</th>
+        <th data-column="backend">Backend</th>
       </tr>
     </thead>
     <tbody></tbody>
@@ -145,10 +164,16 @@
     async function loadPolicies() {
       try {
         const res = await fetch('/api/security-policies');
+        if (!res.ok) {
+          console.warn('Security policies endpoint returned error:', res.status);
+          return;
+        }
         const data = await res.json();
         policiesData = data.policies || {};
       } catch (err) {
         console.error("Error loading policies:", err);
+        // Non bloccare il caricamento della pagina se le policy falliscono
+        policiesData = {};
       }
     }
 
@@ -200,13 +225,15 @@
               
               allApps.push({
                 app: appName,
-                listenerNamespace: gw.namespace,
-                kind: kind,
+                gatewayListener: `${gw.gatewayName}:${gw.listenerName}`,
+                route: kind,
                 protocol: protocol,
                 ip: gw.ip,
                 port: gw.port,
                 gatewayName: gw.gatewayName,
-                listenerName: gw.listenerName
+                listenerName: gw.listenerName,
+                listenerNamespace: gw.namespace,
+                backend: servicePart
               });
             });
           });
@@ -287,12 +314,29 @@
         const uniqueRowId = `row-${index}`; // ID univoco per ogni riga
         const policyKey = `${app.gatewayName}|${app.listenerName}|${app.listenerNamespace}`;
         
+        // Controlla se ci sono policy per questo listener
+        const hasPolicy = policiesData[policyKey] && policiesData[policyKey].length > 0;
+        
         const tr = document.createElement('tr');
         tr.classList.add('expandable-row');
         tr.dataset.rowId = uniqueRowId;
         tr.dataset.policyKey = policyKey;
         
-        ['app', 'listenerNamespace', 'kind', 'protocol', 'ip', 'port'].forEach(key => {
+        // Colonna APP
+        const tdApp = document.createElement('td');
+        tdApp.textContent = app.app || '';
+        tr.appendChild(tdApp);
+        
+        // Colonna FW con indicatore
+        const tdFw = document.createElement('td');
+        const indicator = document.createElement('span');
+        indicator.className = `fw-indicator ${hasPolicy ? 'fw-active' : 'fw-inactive'}`;
+        indicator.title = hasPolicy ? 'Firewall policy active' : 'No firewall policy';
+        tdFw.appendChild(indicator);
+        tr.appendChild(tdFw);
+        
+        // Altre colonne
+        ['gatewayListener', 'route', 'protocol', 'ip', 'port', 'backend'].forEach(key => {
           const td = document.createElement('td');
           td.textContent = app[key] || '';
           tr.appendChild(td);
@@ -330,7 +374,7 @@
       tr.classList.add('policy-details');
       
       const td = document.createElement('td');
-      td.colSpan = 6;
+      td.colSpan = 8;
       
       const policies = policiesData[policyKey] || [];
       

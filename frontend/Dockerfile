@@ -9,6 +9,7 @@ COPY ingress.html .
 COPY egress.html .
 COPY fwpolicies.html .
 COPY login.html .
+COPY api-docs.html .
 COPY bnk-logo.png .
 COPY style.css .
 

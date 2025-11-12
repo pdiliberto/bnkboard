@@ -170,6 +170,7 @@
         <span>▼</span>
       </button>
       <div class="dropdown-content">
+        <a href="api-docs.html" target="_blank">API Doc</a>
         <a href="#" id="logoutLink">Logout</a>
       </div>
     </div>
@@ -191,13 +192,33 @@
   <iframe id="contentFrame" class="content-frame" src="fwpolicies.html"></iframe>
   
   <script>
-    // Controlla autenticazione
-    if (!sessionStorage.getItem('isLoggedIn')) {
+    // Funzione per leggere un cookie
+    function getCookie(name) {
+      const nameEQ = name + "=";
+      const ca = document.cookie.split(';');
+      for(let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+      }
+      return null;
+    }
+    
+    // Funzione per cancellare un cookie
+    function deleteCookie(name) {
+      document.cookie = name + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    }
+    
+    // Controlla autenticazione (prima cookie, poi sessionStorage)
+    const isLoggedInCookie = getCookie('isLoggedIn');
+    const isLoggedInSession = sessionStorage.getItem('isLoggedIn');
+    
+    if (isLoggedInCookie !== 'true' && isLoggedInSession !== 'true') {
       window.location.href = 'login.html';
     }
     
-    // Mostra username
-    const username = sessionStorage.getItem('username');
+    // Mostra username (prima da cookie, poi da sessionStorage)
+    const username = getCookie('username') || sessionStorage.getItem('username');
     if (username) {
       document.getElementById('usernameDisplay').textContent = username;
     }
@@ -219,6 +240,10 @@
     // Logout
     document.getElementById('logoutLink').addEventListener('click', (e) => {
       e.preventDefault();
+      // Cancella cookie
+      deleteCookie('isLoggedIn');
+      deleteCookie('username');
+      // Cancella sessionStorage
       sessionStorage.clear();
       window.location.href = 'login.html';
     });

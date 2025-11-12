@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>BNKdashboard - API Documentation</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f5f7fa;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 20px;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #a8337a 0%, #764ba2 100%);
+      color: white;
+      padding: 40px;
+      border-radius: 10px;
+      margin-bottom: 40px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    
+    .header h1 {
+      margin: 0 0 10px 0;
+      font-size: 2.5em;
+    }
+    
+    .header p {
+      margin: 0;
+      font-size: 1.2em;
+      opacity: 0.9;
+    }
+    
+    .nav {
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .nav a {
+      color: #a8337a;
+      text-decoration: none;
+      margin-right: 25px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 5px;
+      transition: background-color 0.3s;
+    }
+    
+    .nav a:hover {
+      background-color: #f0f0f0;
+    }
+    
+    .endpoint {
+      background: white;
+      border-radius: 10px;
+      padding: 30px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      border-left: 4px solid #a8337a;
+    }
+    
+    .endpoint h2 {
+      margin-top: 0;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .method {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 5px;
+      font-size: 0.8em;
+      font-weight: bold;
+      color: white;
+    }
+    
+    .method-get {
+      background-color: #2196F3;
+    }
+    
+    .path {
+      font-family: 'Courier New', monospace;
+      background-color: #f5f5f5;
+      padding: 12px 20px;
+      border-radius: 5px;
+      margin: 15px 0;
+      border-left: 3px solid #a8337a;
+      font-size: 1.1em;
+    }
+    
+    .description {
+      color: #666;
+      line-height: 1.6;
+      margin: 15px 0;
+    }
+    
+    .section-title {
+      font-weight: 600;
+      color: #333;
+      margin-top: 20px;
+      margin-bottom: 10px;
+      font-size: 1.1em;
+    }
+    
+    .response-example {
+      background-color: #1e1e1e;
+      color: #d4d4d4;
+      padding: 20px;
+      border-radius: 5px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+      line-height: 1.5;
+      margin-top: 10px;
+    }
+    
+    .json-key {
+      color: #9cdcfe;
+    }
+    
+    .json-string {
+      color: #ce9178;
+    }
+    
+    .json-number {
+      color: #b5cea8;
+    }
+    
+    .json-boolean {
+      color: #569cd6;
+    }
+    
+    .params-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    
+    .params-table th,
+    .params-table td {
+      padding: 12px;
+      text-align: left;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .params-table th {
+      background-color: #f5f5f5;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    .param-name {
+      font-family: 'Courier New', monospace;
+      color: #a8337a;
+      font-weight: 600;
+    }
+    
+    .param-type {
+      color: #666;
+      font-style: italic;
+    }
+    
+    .back-link {
+      display: inline-block;
+      margin-top: 40px;
+      color: #a8337a;
+      text-decoration: none;
+      font-weight: 600;
+      padding: 10px 20px;
+      border: 2px solid #a8337a;
+      border-radius: 5px;
+      transition: all 0.3s;
+    }
+    
+    .back-link:hover {
+      background-color: #a8337a;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🚀 BNKdashboard API Documentation</h1>
+      <p>RESTful API for Kubernetes Gateway and Firewall Policy Management</p>
+    </div>
+    
+    <div class="nav">
+      <a href="#gateways">Gateways</a>
+      <a href="#policies">Firewall Policies</a>
+      <a href="#security-policies">Security Policies</a>
+      <a href="#egress">Egress</a>
+      <a href="#snatpools">SNAT Pools</a>
+    </div>
+    
+    <!-- Gateways Endpoint -->
+    <div class="endpoint" id="gateways">
+      <h2>
+        <span class="method method-get">GET</span>
+        Get Gateways
+      </h2>
+      <div class="path">/api/gateways</div>
+      <div class="description">
+        Retrieves all Kubernetes gateways with their listeners and associated routes (L4Route and HTTPRoute).
+        This endpoint consolidates gateway information including IP addresses, ports, protocols, and backend services.
+      </div>
+      
+      <div class="section-title">Response Schema</div>
+      <div class="response-example">
+{
+  <span class="json-key">"gateways"</span>: [
+    {
+      <span class="json-key">"gatewayName"</span>: <span class="json-string">"my-http-gateway"</span>,
+      <span class="json-key">"namespace"</span>: <span class="json-string">"blue"</span>,
+      <span class="json-key">"ip"</span>: <span class="json-string">"172.16.202.100"</span>,
+      <span class="json-key">"listenerName"</span>: <span class="json-string">"http-listener"</span>,
+      <span class="json-key">"port"</span>: <span class="json-number">80</span>,
+      <span class="json-key">"protocol"</span>: <span class="json-string">"HTTP"</span>,
+      <span class="json-key">"kind"</span>: <span class="json-string">"Gateway"</span>,
+      <span class="json-key">"routes"</span>: [
+        {
+          <span class="json-key">"type"</span>: <span class="json-string">"HTTPRoute"</span>,
+          <span class="json-key">"name"</span>: <span class="json-string">"l7-http-app"</span>,
+          <span class="json-key">"match"</span>: {
+            <span class="json-key">"headers"</span>: [
+              {
+                <span class="json-key">"name"</span>: <span class="json-string">"Host"</span>,
+                <span class="json-key">"value"</span>: <span class="json-string">"blue.demo.net"</span>
+              }
+            ]
+          },
+          <span class="json-key">"backends"</span>: [<span class="json-string">"blue/nginx-app-svc:80"</span>]
+        }
+      ]
+    }
+  ]
+}
+      </div>
+    </div>
+    
+    <!-- Firewall Rules Endpoint -->
+    <div class="endpoint" id="policies">
+      <h2>
+        <span class="method method-get">GET</span>
+        Get Firewall Rules
+      </h2>
+      <div class="path">/api/firewall-rules</div>
+      <div class="description">
+        Retrieves all F5BigFwPolicy resources with their rules, including source/destination addresses, ports, actions, and logging settings.
+      </div>
+      
+      <div class="section-title">Response Schema</div>
+      <div class="response-example">
+[
+  {
+    <span class="json-key">"polname"</span>: <span class="json-string">"firewallpolicy-gateway"</span>,
+    <span class="json-key">"target"</span>: <span class="json-string">"my-tcp-gateway"</span>,
+    <span class="json-key">"ruleName"</span>: <span class="json-string">"sc-rule-tcp-ingress-1"</span>,
+    <span class="json-key">"protocol"</span>: <span class="json-string">"any"</span>,
+    <span class="json-key">"source"</span>: <span class="json-string">"10.2.30.101/32"</span>,
+    <span class="json-key">"destination"</span>: <span class="json-string">""</span>,
+    <span class="json-key">"ports"</span>: <span class="json-string">""</span>,
+    <span class="json-key">"action"</span>: <span class="json-string">"drop"</span>,
+    <span class="json-key">"logging"</span>: <span class="json-string">"True"</span>,
+    <span class="json-key">"description"</span>: <span class="json-string">""</span>,
+    <span class="json-key">"timestamp"</span>: <span class="json-string">"2025-11-10T22:47:39Z"</span>
+  }
+]
+      </div>
+    </div>
+    
+    <!-- All Firewall Policies -->
+    <div class="endpoint" id="all-policies">
+      <h2>
+        <span class="method method-get">GET</span>
+        Get All Firewall Policies
+      </h2>
+      <div class="path">/api/all-firewall-policies</div>
+      <div class="description">
+        Retrieves all firewall policies with their associations to gateways (ingress) or egress configurations. 
+        Includes complete rule details and gateway information.
+      </div>
+      
+      <div class="section-title">Response Schema</div>
+      <div class="response-example">
+{
+  <span class="json-key">"policies"</span>: [
+    {
+      <span class="json-key">"policyName"</span>: <span class="json-string">"firewallpolicy2-gateway"</span>,
+      <span class="json-key">"policyNamespace"</span>: <span class="json-string">"blue"</span>,
+      <span class="json-key">"type"</span>: <span class="json-string">"ingress"</span>,
+      <span class="json-key">"app"</span>: <span class="json-string">"my-http-gateway/http-listener"</span>,
+      <span class="json-key">"namespace"</span>: <span class="json-string">"blue"</span>,
+      <span class="json-key">"ip"</span>: <span class="json-string">"172.16.202.100"</span>,
+      <span class="json-key">"port"</span>: <span class="json-number">80</span>,
+      <span class="json-key">"protocol"</span>: <span class="json-string">"HTTP"</span>,
+      <span class="json-key">"gatewayIp"</span>: <span class="json-string">"172.16.202.100"</span>,
+      <span class="json-key">"rules"</span>: [...]
+    }
+  ]
+}
+      </div>
+    </div>
+    
+    <!-- Security Policies -->
+    <div class="endpoint" id="security-policies">
+      <h2>
+        <span class="method method-get">GET</span>
+        Get Security Policies
+      </h2>
+      <div class="path">/api/security-policies</div>
+      <div class="description">
+        Retrieves BNKSecPolicy resources mapped to gateway listeners with their associated F5BigFwPolicy rules.
+      </div>
+      
+      <div class="section-title">Response Schema</div>
+      <div class="response-example">
+{
+  <span class="json-key">"policies"</span>: {
+    <span class="json-string">"my-http-gateway|http-listener|blue"</span>: [
+      {
+        <span class="json-key">"policyName"</span>: <span class="json-string">"firewallpolicy2-gateway"</span>,
+        <span class="json-key">"namespace"</span>: <span class="json-string">"blue"</span>,
+        <span class="json-key">"rules"</span>: [
+          {
+            <span class="json-key">"name"</span>: <span class="json-string">"sc-rule-tcp-ingress-2"</span>,
+            <span class="json-key">"action"</span>: <span class="json-string">"drop"</span>,
+            <span class="json-key">"ipProtocol"</span>: <span class="json-string">"any"</span>,
+            <span class="json-key">"source"</span>: <span class="json-string">"10.233.0.0/16"</span>,
+            <span class="json-key">"destination"</span>: <span class="json-string">"172.16.202.100/32"</span>,
+            <span class="json-key">"ports"</span>: <span class="json-string">""</span>,
+            <span class="json-key">"logging"</span>: <span class="json-string">"True"</span>
+          }
+        ]
+      }
+    ]
+  }
+}
+      </div>
+    </div>
+    
+    <!-- Egress -->
+    <div class="endpoint" id="egress">
+      <h2>
+        <span class="method method-get">GET</span>
+        Get Egress Configurations
+      </h2>
+      <div class="path">/api/egress</div>
+      <div class="description">
+        Retrieves F5SPKEgress configurations including SNAT settings, firewall policies, and application namespaces.
+      </div>
+      
+      <div class="section-title">Response Schema</div>
+      <div class="response-example">
+{
+  <span class="json-key">"egress"</span>: [
+    {
+      <span class="json-key">"name"</span>: <span class="json-string">"red-egress"</span>,
+      <span class="json-key">"appNamespaces"</span>: <span class="json-string">"red"</span>,
+      <span class="json-key">"snatType"</span>: <span class="json-string">"SRC_TRANS_SNATPOOL"</span>,
+      <span class="json-key">"snatpool"</span>: <span class="json-string">"red-snat"</span>,
+      <span class="json-key">"firewallPolicy"</span>: <span class="json-string">"firewallpolicy-egress"</span>,
+      <span class="json-key">"namespace"</span>: <span class="json-string">"f5-bnk"</span>
+    }
+  ]
+}
+      </div>
+    </div>
+    
+    <!-- SNAT Pools -->
+    <div class="endpoint" id="snatpools">
+      <h2>
+        <span class="method method-get">GET</span>
+        Get SNAT Pools
+      </h2>
+      <div class="path">/api/snatpools</div>
+      <div class="description">
+        Retrieves F5SPKSnatpool resources with their IP address lists.
+      </div>
+      
+      <div class="section-title">Response Schema</div>
+      <div class="response-example">
+{
+  <span class="json-key">"snatpools"</span>: {
+    <span class="json-string">"f5-bnk|red-snat"</span>: {
+      <span class="json-key">"name"</span>: <span class="json-string">"red-snat"</span>,
+      <span class="json-key">"namespace"</span>: <span class="json-string">"f5-bnk"</span>,
+      <span class="json-key">"addresses"</span>: [
+        <span class="json-string">"172.16.201.221"</span>,
+        <span class="json-string">"172.16.201.222"</span>,
+        <span class="json-string">"172.16.201.223"</span>,
+        <span class="json-string">"172.16.201.224"</span>
+      ]
+    }
+  }
+}
+      </div>
+    </div>
+    
+    <!-- Firewall Policies Details -->
+    <div class="endpoint" id="firewall-policies">
+      <h2>
+        <span class="method method-get">GET</span>
+        Get Firewall Policies
+      </h2>
+      <div class="path">/api/firewall-policies</div>
+      <div class="description">
+        Retrieves all F5BigFwPolicy resources mapped by namespace and name, including detailed rule specifications.
+      </div>
+      
+      <div class="section-title">Response Schema</div>
+      <div class="response-example">
+{
+  <span class="json-key">"policies"</span>: {
+    <span class="json-string">"f5-bnk|firewallpolicy-egress"</span>: {
+      <span class="json-key">"name"</span>: <span class="json-string">"firewallpolicy-egress"</span>,
+      <span class="json-key">"namespace"</span>: <span class="json-string">"f5-bnk"</span>,
+      <span class="json-key">"rules"</span>: [
+        {
+          <span class="json-key">"name"</span>: <span class="json-string">"sc-rule-tcp-egress-1"</span>,
+          <span class="json-key">"action"</span>: <span class="json-string">"drop"</span>,
+          <span class="json-key">"ipProtocol"</span>: <span class="json-string">"any"</span>,
+          <span class="json-key">"source"</span>: <span class="json-string">""</span>,
+          <span class="json-key">"sourcePorts"</span>: <span class="json-string">""</span>,
+          <span class="json-key">"destination"</span>: <span class="json-string">"10.2.30.101/32"</span>,
+          <span class="json-key">"destinationPorts"</span>: <span class="json-string">""</span>,
+          <span class="json-key">"logging"</span>: <span class="json-string">"True"</span>
+        }
+      ]
+    }
+  }
+}
+      </div>
+    </div>
+    
+    <div style="background: white; padding: 30px; border-radius: 10px; margin-top: 40px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      <h2>📝 General Information</h2>
+      
+      <div class="section-title">Base URL</div>
+      <div class="path">http://your-server:port</div>
+      
+      <div class="section-title">Authentication</div>
+      <p class="description">Currently, the API does not require authentication. Consider implementing API keys or OAuth2 for production environments.</p>
+      
+      <div class="section-title">Response Format</div>
+      <p class="description">All responses are in JSON format with appropriate HTTP status codes:</p>
+      <table class="params-table">
+        <tr>
+          <th>Status Code</th>
+          <th>Description</th>
+        </tr>
+        <tr>
+          <td><span class="param-name">200</span></td>
+          <td>Successful request</td>
+        </tr>
+        <tr>
+          <td><span class="param-name">500</span></td>
+          <td>Internal server error (includes error message in response)</td>
+        </tr>
+      </table>
+      
+      <div class="section-title">Error Handling</div>
+      <p class="description">In case of errors, the API returns a JSON object with an error message:</p>
+      <div class="response-example">
+{
+  <span class="json-key">"error"</span>: <span class="json-string">"Error description"</span>
+}
+      </div>
+    </div>
+    
+    <a href="index.html" class="back-link">← Back to Dashboard</a>
+  </div>
+</body>
+</html>

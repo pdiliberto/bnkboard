@@ -135,6 +135,31 @@
   </div>
   
   <script>
+    // Funzione per impostare un cookie
+    function setCookie(name, value, minutes) {
+      const date = new Date();
+      date.setTime(date.getTime() + (minutes * 60 * 1000));
+      const expires = "expires=" + date.toUTCString();
+      document.cookie = name + "=" + value + ";" + expires + ";path=/";
+    }
+    
+    // Funzione per leggere un cookie
+    function getCookie(name) {
+      const nameEQ = name + "=";
+      const ca = document.cookie.split(';');
+      for(let i = 0; i < ca.length; i++) {
+        let c = ca[i];
+        while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+        if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+      }
+      return null;
+    }
+    
+    // Controlla se già autenticato
+    if (getCookie('isLoggedIn') === 'true') {
+      window.location.href = 'index.html';
+    }
+    
     document.getElementById('loginForm').addEventListener('submit', function(e) {
       e.preventDefault();
       
@@ -144,9 +169,14 @@
       
       // Credenziali hardcoded
       if (username === 'admin' && password === 'ilovebnk') {
-        // Salva la sessione
+        // Salva la sessione in cookie (30 minuti)
+        setCookie('isLoggedIn', 'true', 30);
+        setCookie('username', username, 30);
+        
+        // Salva anche in sessionStorage per compatibilità
         sessionStorage.setItem('isLoggedIn', 'true');
         sessionStorage.setItem('username', username);
+        
         // Redirect alla dashboard
         window.location.href = 'index.html';
       } else {
