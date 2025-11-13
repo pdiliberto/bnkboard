@@ -404,13 +404,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 👥 Authors & Acknowledgments
 
 ### Authors
-- **Paolo Di Liberto** - [YourGitHub](https://github.com/pdiliberto)
+- **Paolo Di Liberto** - (https://github.com/pdiliberto)
 
 ### Acknowledgments
 - F5 Networks for BNK
 - Kubernetes Gateway API community
 - FastAPI framework developers
 - All contributors who have helped improve this project
+- [Andrew Bargery] for the BNK environment on F5 UDF.
 
 ---
 
