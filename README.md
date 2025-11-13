@@ -331,6 +331,22 @@ For complete API documentation, access `/api-docs.html` in the running applicati
 
 ---
 
+## 📸 Screenshots
+
+### Login Page
+![Login Page](docs/login.jpg)
+
+### Firewall Policies Dashboard
+![Policies Dashboard](docs/policies.jpg)
+
+### Applications View
+![Applications View](docs/applications.jpg)
+
+### Egress Configuration
+![Egress View](docsegress.jpg)
+
+---
+
 ## 🐛 Troubleshooting
 
 ### Common Issues
