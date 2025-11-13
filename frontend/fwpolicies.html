@@ -155,6 +155,17 @@
       padding: 16px 12px;
       color: #444;
       font-size: 0.95em;
+      border-right: 1px solid #f5f5f5;
+    }
+    
+    td:last-child {
+      border-right: none;
+    }
+    
+    td[rowspan] {
+      vertical-align: middle;
+      background: linear-gradient(90deg, rgba(168, 51, 122, 0.02) 0%, transparent 100%);
+      font-weight: 600;
     }
     
     .badge {
@@ -341,7 +352,27 @@
 
       filteredPolicies = sortPolicies(filteredPolicies);
 
-      filteredPolicies.forEach((policy) => {
+      // Raggruppa le policy per creare una chiave unica
+      const groupedPolicies = {};
+      filteredPolicies.forEach(policy => {
+        const key = `${policy.policyName}|${policy.type}|${policy.app}|${policy.namespace}`;
+        if (!groupedPolicies[key]) {
+          groupedPolicies[key] = {
+            policyName: policy.policyName,
+            type: policy.type,
+            app: policy.app,
+            namespace: policy.namespace,
+            ip: policy.ip,
+            port: policy.port,
+            protocol: policy.protocol,
+            gatewayIp: policy.gatewayIp,
+            rules: policy.rules || []
+          };
+        }
+      });
+
+      // Renderizza le righe con rowspan
+      Object.values(groupedPolicies).forEach((policy) => {
         if (!policy.rules || policy.rules.length === 0) {
           const tr = document.createElement('tr');
           
@@ -371,27 +402,37 @@
           
           tbody.appendChild(tr);
         } else {
+          const rowspan = policy.rules.length;
+          
           policy.rules.forEach((rule, ruleIndex) => {
             const tr = document.createElement('tr');
             
-            const tdName = document.createElement('td');
-            tdName.textContent = policy.policyName;
-            tr.appendChild(tdName);
+            // Prima riga: aggiungi le prime 4 colonne con rowspan
+            if (ruleIndex === 0) {
+              const tdName = document.createElement('td');
+              tdName.textContent = policy.policyName;
+              tdName.setAttribute('rowspan', rowspan);
+              tr.appendChild(tdName);
+              
+              const tdType = document.createElement('td');
+              const badgeClass = policy.type === 'ingress' ? 'badge-ingress' : 
+                                policy.type === 'egress' ? 'badge-egress' : 'badge-unassociated';
+              tdType.innerHTML = `<span class="badge ${badgeClass}">${policy.type.toUpperCase()}</span>`;
+              tdType.setAttribute('rowspan', rowspan);
+              tr.appendChild(tdType);
+              
+              const tdApp = document.createElement('td');
+              tdApp.textContent = policy.app;
+              tdApp.setAttribute('rowspan', rowspan);
+              tr.appendChild(tdApp);
+              
+              const tdNs = document.createElement('td');
+              tdNs.textContent = policy.namespace;
+              tdNs.setAttribute('rowspan', rowspan);
+              tr.appendChild(tdNs);
+            }
             
-            const tdType = document.createElement('td');
-            const badgeClass = policy.type === 'ingress' ? 'badge-ingress' : 
-                              policy.type === 'egress' ? 'badge-egress' : 'badge-unassociated';
-            tdType.innerHTML = `<span class="badge ${badgeClass}">${policy.type.toUpperCase()}</span>`;
-            tr.appendChild(tdType);
-            
-            const tdApp = document.createElement('td');
-            tdApp.textContent = policy.app;
-            tr.appendChild(tdApp);
-            
-            const tdNs = document.createElement('td');
-            tdNs.textContent = policy.namespace;
-            tr.appendChild(tdNs);
-            
+            // Tutte le righe: aggiungi le colonne della regola
             const tdRuleName = document.createElement('td');
             tdRuleName.innerHTML = `<strong>${rule.name}</strong>`;
             tr.appendChild(tdRuleName);
