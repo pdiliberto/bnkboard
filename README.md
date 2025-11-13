@@ -34,7 +34,7 @@
 
 ## 🎯 Overview
 
-BNK-board is a comprehensive web-based GUI dashboard designed to monitor F5 BNK Gateway/Listenes, Egress and associated FW Policies. It provides an intuitive interface to show  BNK configurations, Gateway resources, and security policies without needing to interact directly with kubectl commands.
+BNK-board is a comprehensive web-based GUI dashboard designed to monitor F5 BNK Gateway/Listeners, Egress and associated FW Policies. It provides an intuitive interface to show  BNK configurations, Gateway resources, and security policies without needing to interact directly with kubectl commands.
 
 ### Why BNK-board?
 
@@ -124,14 +124,14 @@ BNK-board is a comprehensive web-based GUI dashboard designed to monitor F5 BNK 
 
 ## 📦 Prerequisites
 
-- **Kubernetes Cluster**: v1.19+ with Gateway API installed
-- **kubectl**: Configured with appropriate cluster access
+- **BNK!**: Refer to (https://clouddocs.f5.com/bigip-next-for-kubernetes/2.0.0-GA/bnk-install-bnk.html)
+- **Kubeconfig**: Proper K8s cluster credentials
 - **docker compose**
 - **Web Browser**: Modern browser (Chrome, Firefox, Safari, Edge)
 
-### Required Kubernetes CRDs
+### Kubernetes Resources and CRDs
 
-The following Custom Resource Definitions (read, F5 BNK) must be installed in your cluster:
+BNK-board retrieve information about these resources and CRDs:
 
 - `Gateway` (gateway.networking.k8s.io)
 - `HTTPRoute` (gateway.networking.k8s.io)
@@ -151,7 +151,7 @@ The following Custom Resource Definitions (read, F5 BNK) must be installed in yo
 git clone https://github.com/pdiliberto/bnk-board.git
 cd bnkboard
 
-Backend needs to run kubectl (for now). Edit the docker-compose.yaml to include your .kube/config file:
+Edit the docker-compose.yaml to include your .kube/config file:
 
 volumes:
       - ~/.kube/config:/root/.kube/config:ro
@@ -331,22 +331,6 @@ For complete API documentation, access `/api-docs.html` in the running applicati
 
 ---
 
-## 📸 Screenshots
-
-### Login Page
-![Login Page](docs/images/login.png)
-
-### Firewall Policies Dashboard
-![Policies Dashboard](docs/images/policies.png)
-
-### Applications View
-![Applications View](docs/images/applications.png)
-
-### Egress Configuration
-![Egress View](docs/images/egress.png)
-
----
-
 ## 🐛 Troubleshooting
 
 ### Common Issues
@@ -437,7 +421,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [x] Merged cells for policies with multiple rules
 - [ ] Dark mode toggle
 - [ ] (Real) Authentication
-- [ ] Direct API Kubernetes access (get rid of kubectl)
+- [ ] Direct API Kubernetes access (bye bye kubectl, welcome K8s Python Client!)
+- [ ] Manifest for Kubernetes installation
 
 
 ---
