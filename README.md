@@ -27,6 +27,7 @@
 - [Usage](#usage)
 - [API Documentation](#api-documentation)
 - [Development](#development)
+- [Screenshots](#-screenshots)
 - [Troubleshooting](#troubleshooting)
 - [License](#license)
 
@@ -343,7 +344,7 @@ For complete API documentation, access `/api-docs.html` in the running applicati
 ![Applications View](docs/applications.jpg)
 
 ### Egress Configuration
-![Egress View](docsegress.jpg)
+![Egress View](docs/egress.jpg)
 
 ---
 
