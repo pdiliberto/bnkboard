@@ -142,7 +142,12 @@ BNK-board retrieve information about these resources and CRDs:
 - `F5SPKEgress` (k8s.f5net.com)
 - `F5SPKSnatpool` (k8s.f5net.com)
 
+Only Listener-Specific firewall policies are supported and tested right now. Gateway-Wide and Global Firewall Policies are in the roadmap.
+Port, address and rule lists are not sopported at this time. 
+
+
 ---
+
 
 ## 🚀 Installation
 
@@ -441,6 +446,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [ ] (Real) Authentication
 - [ ] Direct API Kubernetes access (bye bye kubectl, welcome K8s Python Client!)
 - [ ] Manifest for Kubernetes installation
+- [ ] Gateway and Global Firewall Policies support
+- [ ] Rule, Port and Address lists support
 
 
 ---
