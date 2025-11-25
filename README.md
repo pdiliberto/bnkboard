@@ -154,7 +154,7 @@ Port, address and rule lists are not sopported at this time.
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/pdiliberto/bnk-board.git
+git clone https://github.com/pdiliberto/bnkboard.git
 cd bnkboard
 
 Edit the docker-compose.yaml to include your .kube/config file:
